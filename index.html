@@ -1,0 +1,80 @@
+<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Noor Fashion</title>
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0f1b33"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="app-version" content="__VERSION__">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1f6;--c:#fff;--t:#14203b;--m:#66708a;--g:#c8891d;--n:#0f1b33;--ok:#14935b;--no:#d23f4d;--l:#dde3ee;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0a1122;--c:#142039;--t:#eef1f8;--m:#98a3bd;--g:#e8b44c;--n:#060b17;--l:#24304f}}
+:root[data-theme=dark]{--bg:#0a1122;--c:#142039;--t:#eef1f8;--m:#98a3bd;--g:#e8b44c;--n:#060b17;--l:#24304f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 'Hind Siliguri',system-ui,sans-serif}
+header{background:linear-gradient(135deg,#0f1b33,#1d3160);color:#fff;padding:18px 16px 14px;border-bottom:3px dashed #e8b44c}
+header b{font-size:22px;letter-spacing:.3px}header small{display:block;opacity:.75}header button{float:right;background:#ffffff22;border:0;color:#fff;border-radius:10px;padding:6px 10px;font-size:18px}
+main{padding:14px 14px 96px;max-width:760px;margin:auto}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--c);border-top:1px solid var(--l);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
+nav button{flex:1;border:0;background:none;color:var(--m);font:600 11px 'Hind Siliguri',sans-serif;padding:4px 0}nav button i{display:block;font-style:normal;font-size:20px}nav .on{color:var(--g)}
+.card{background:var(--c);border:1px solid var(--l);border-radius:18px;padding:14px;margin:0 0 12px;box-shadow:0 6px 18px #0f1b3314}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}.k{border-radius:16px;padding:12px;background:linear-gradient(135deg,#0f1b33,#233b73);color:#fff}.k b{display:block;font-size:22px}.k span{font-size:12px;opacity:.8}.k.y{background:linear-gradient(135deg,#a9690f,#e8b44c);color:#1b1304}
+h3{margin:4px 0 10px;font-size:17px}input,select{width:100%;padding:10px;border:1px solid var(--l);border-radius:12px;background:var(--bg);color:var(--t);font:inherit;margin:3px 0}
+.r{display:flex;gap:8px;align-items:center}.r>*{flex:1}.btn{display:inline-block;border:0;border-radius:12px;padding:10px 16px;background:linear-gradient(135deg,#b97a12,#e8b44c);color:#1b1304;font:700 14px 'Hind Siliguri',sans-serif;text-decoration:none;text-align:center}
+.btn.wa{background:#1fa855;color:#fff}.btn.s{padding:6px 10px;font-size:12px;flex:none}.btn.x{background:var(--l);color:var(--t)}
+.row{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px dashed var(--l)}.row:last-child{border:0}.m{color:var(--m);font-size:12.5px}.p{color:var(--ok);font-weight:700}.q{color:var(--no);font-weight:700}
+.sb{display:flex;gap:8px;margin-top:10px}.sb input{margin:0}.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th,td{padding:8px 6px;border-bottom:1px solid var(--l);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--m)}tfoot td{font-weight:700;color:var(--g)}
+@media print{nav,header,.sb,[data-a]{display:none!important}body{background:#fff}}
+</style></head><body>
+<header><button id="gs">⚙</button><b id="co">Noor Fashion</b><small>প্রতিষ্ঠান পরিচালনা · হাজিরা · হিসাব · মজুদ</small></header>
+<main id="v"></main>
+<nav id="nv"></nav>
+<script>
+const K='nf1',Z=()=>new Date().toISOString().slice(0,10);
+let D={w:[],a:{},t:[],i:[],m:[],s:{n:'Noor Fashion',i:'08:00',o:'17:00',d:26,x:2,cc:'88',ph:''}},T='h',DT=Z(),MO=Z().slice(0,7),ED=null,AR=null;
+try{D=Object.assign(D,JSON.parse(localStorage.getItem(K)))}catch(e){}
+const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),S=()=>{try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}},$=s=>document.querySelector(s),id=()=>Math.random().toString(36).slice(2,9),
+N=(n,d=0)=>'৳'+(+n||0).toLocaleString('bn-BD',{maximumFractionDigits:d}),H=(n)=>(+n||0).toLocaleString('bn-BD',{maximumFractionDigits:1}),
+mn=t=>{const p=(t||'0:0').split(':');return p[0]*60+ +p[1]},ph=v=>{v=(v||'').replace(/\D/g,'');return v[0]=='0'?D.s.cc+v.slice(1):v},
+sh=()=>Math.max(1,(mn(D.s.o)-mn(D.s.i))/60);
+function day(r){if(!r||r.x)return{p:0,ot:0,w:0};if(!r.i||!r.o)return{p:0,ot:0,w:0};const w=Math.max(0,mn(r.o)-mn(r.i));return{p:1,w:w/60,ot:Math.max(0,mn(r.o)-mn(D.s.o))/60}}
+function pay(w,ym){let p=0,ab=0,ot=0;for(const d in D.a)if(d.startsWith(ym)){const r=D.a[d][w.id];if(!r)continue;if(r.x)ab++;else{const q=day(r);p+=q.p;ot+=q.ot}}
+const dl=w.s/D.s.d,o=ot*dl/sh()*D.s.x,de=ab*dl;return{p,ab,ot,o,de,tot:Math.round(w.s-de+o)}}
+function send(t,p){return `<div class="sb"><input type="tel" data-ph placeholder="WhatsApp নম্বর (01XXXXXXXXX)" value="${p||D.s.ph||''}"><a class="btn wa" target="_blank" rel="noopener" data-t="${encodeURIComponent(t)}" href="#">পাঠান</a></div>`}
+const tx=d=>D.t.filter(x=>x.d==d),sum=(a,t)=>a.filter(x=>x.t==t).reduce((s,x)=>s+x.a,0);
+const V={
+h(){const a=D.a[Z()]||{},pr=D.w.filter(w=>day(a[w.id]).p).length,t=tx(Z()),mt=D.t.filter(x=>x.d.startsWith(Z().slice(0,7))),pm=D.w.reduce((s,w)=>s+pay(w,Z().slice(0,7)).tot,0),low=D.i.filter(x=>x.q<=x.m).length;
+return `<div class="g"><div class="k"><b>${H(D.w.length)}</b><span>মোট কর্মী</span></div><div class="k"><b>${H(pr)}</b><span>আজ উপস্থিত</span></div><div class="k y"><b>${N(sum(t,'i'))}</b><span>আজকের আয়</span></div><div class="k y"><b>${N(sum(t,'o'))}</b><span>আজকের ব্যয়</span></div></div>
+<div class="card" style="margin-top:12px"><h3>এই মাস</h3><div class="row"><span>আয়</span><b class="p">${N(sum(mt,'i'))}</b></div><div class="row"><span>ব্যয়</span><b class="q">${N(sum(mt,'o'))}</b></div><div class="row"><span>নিট লাভ</span><b>${N(sum(mt,'i')-sum(mt,'o'))}</b></div><div class="row"><span>বেতন (আনুমানিক)</span><b>${N(pm)}</b></div><div class="row"><span>কম মজুদ</span><b class="${low?'q':''}">${H(low)} টি</b></div></div>`},
+w(){const e=D.w.find(x=>x.id==ED)||{};return `<div class="card"><h3>${ED?'কর্মী সম্পাদনা':'নতুন কর্মী'}</h3><input id="wn" placeholder="নাম" value="${E(e.n)}"><input id="wp" type="tel" placeholder="ফোন নম্বর" value="${E(e.p)}"><input id="wa" placeholder="ঠিকানা" value="${E(e.a)}"><div class="r"><input id="wd" placeholder="পদবী" value="${E(e.d)}"><input id="ws" type="number" placeholder="মাসিক বেতন" value="${e.s||''}"></div><button class="btn" data-a="sw">${ED?'হালনাগাদ':'যুক্ত করুন'}</button> ${ED?'<button class="btn x" data-a="cw">বাতিল</button>':''}</div>`+
+D.w.map(w=>`<div class="card"><div class="row" style="border:0"><div><b>${E(w.n)}</b> <span class="m">${E(w.d)}</span><div class="m">${E(w.p)} · ${E(w.a)}</div></div><b>${N(w.s)}</b></div><div class="r"><button class="btn s x" data-a="ew" data-i="${w.id}">সম্পাদনা</button><button class="btn s x" data-a="dw" data-i="${w.id}">মুছুন</button></div></div>`).join('')||'<p class="m">কোনো কর্মী নেই। উপরে প্রথম কর্মী যুক্ত করুন।</p>'},
+a(){const a=D.a[DT]||{};let t=`*${D.s.n}* হাজিরা ${DT}\n`;const rows=D.w.map(w=>{const r=a[w.id]||{},q=day(r);t+=`${w.n}: ${r.x?'অনুপস্থিত':(r.i||'-')+'–'+(r.o||'-')+' OT '+H(q.ot)+'ঘ'}\n`;
+return `<div class="card"><div class="row" style="border:0"><b>${E(w.n)}</b><span class="m">${r.x?'অনুপস্থিত':q.p?'কাজ '+H(q.w)+'ঘ · OT '+H(q.ot)+'ঘ':''}</span></div><div class="r"><input type="time" data-c="i" data-w="${w.id}" value="${r.i||''}"><input type="time" data-c="o" data-w="${w.id}" value="${r.o||''}"><button class="btn s ${r.x?'':'x'}" data-a="ab" data-i="${w.id}">অনুপস্থিত</button></div></div>`}).join('');
+return `<div class="card"><input type="date" id="dt" value="${DT}"><button class="btn s x" data-a="fill">সবার ডিউটির সময় বসান (${D.s.i}–${D.s.o})</button></div>${rows||'<p class="m">আগে কর্মী যুক্ত করুন।</p>'}<div class="card">${send(t)}</div>`},
+f(){const l=tx(DT);let t=`*${D.s.n}* হিসাব ${DT}\n`+l.map(x=>`${x.t=='i'?'আয়':'ব্যয়'} ${x.c}: ${N(x.a)}`).join('\n')+`\nআয় ${N(sum(l,'i'))} · ব্যয় ${N(sum(l,'o'))} · লাভ ${N(sum(l,'i')-sum(l,'o'))}`;
+return `<div class="card"><input type="date" id="dt" value="${DT}"><div class="r"><select id="ft"><option value="i">আয়</option><option value="o">ব্যয়</option></select><input id="fa" type="number" placeholder="টাকা"></div><input id="fc" list="cl" placeholder="খাত (বিক্রি, কাঁচামাল, ভাড়া…)"><datalist id="cl"><option>বিক্রি<option>কাঁচামাল<option>বেতন<option>ভাড়া<option>বিদ্যুৎ<option>পরিবহন<option>অন্যান্য</datalist><input id="fn" placeholder="নোট"><button class="btn" data-a="sf">সংরক্ষণ</button></div>
+<div class="card"><h3>${DT}</h3>${l.map(x=>`<div class="row"><span>${E(x.c)} <span class="m">${E(x.n)}</span></span><span><b class="${x.t=='i'?'p':'q'}">${x.t=='i'?'+':'−'}${N(x.a)}</b> <button class="btn s x" data-a="df" data-i="${x.id}">×</button></span></div>`).join('')||'<p class="m">আজ কোনো এন্ট্রি নেই।</p>'}<div class="row"><b>লাভ</b><b>${N(sum(l,'i')-sum(l,'o'))}</b></div>${send(t)}</div>`},
+s(){let t=`*${D.s.n}* মজুদ\n`+D.i.map(x=>`${x.n}: ${H(x.q)} ${x.u}`).join('\n');
+return `<div class="card"><h3>নতুন মালামাল</h3><input id="in" placeholder="মালের নাম"><div class="r"><input id="iu" placeholder="একক (পিস/কেজি)"><input id="iq" type="number" placeholder="শুরুর পরিমাণ"><input id="im" type="number" placeholder="সর্বনিম্ন"></div><button class="btn" data-a="si">যুক্ত করুন</button></div>`+
+D.i.map(x=>`<div class="card"><div class="row" style="border:0"><b>${E(x.n)}</b><b class="${x.q<=x.m?'q':'p'}">${H(x.q)} ${E(x.u)}</b></div><div class="r"><input type="number" id="q${x.id}" placeholder="পরিমাণ"><button class="btn s" data-a="mv" data-i="${x.id}" data-s="1">＋ জমা</button><button class="btn s x" data-a="mv" data-i="${x.id}" data-s="-1">− খরচ</button><button class="btn s x" data-a="di" data-i="${x.id}">×</button></div></div>`).join('')+
+`<div class="card"><h3>সাম্প্রতিক লেনদেন</h3>${D.m.slice(-10).reverse().map(l=>{const x=D.i.find(i=>i.id==l.i);return x?`<div class="row"><span>${E(x.n)} <span class="m">${l.d}</span></span><b class="${l.q>0?'p':'q'}">${l.q>0?'+':'−'}${H(Math.abs(l.q))} ${E(x.u)}</b></div>`:''}).join('')||'<p class="m">এখনো কোনো জমা/খরচ নেই।</p>'}</div><div class="card">${send(t)}</div>`},
+m(){let t=`*${D.s.n}* মাসিক শিট ${MO}\n`,gt=0,go=0;const rows=D.w.map(w=>{const q=pay(w,MO);gt+=q.tot;go+=q.ot;t+=`${w.n}: ${H(q.p)} দিন, OT ${H(q.ot)}ঘ, মোট ${N(q.tot)}\n`;
+return `<tr><td>${E(w.n)}</td><td>${H(q.p)}</td><td>${H(q.ot)}</td><td>${N(w.s)}</td><td>${N(q.o)}</td><td>${N(q.de)}</td><td>${N(q.tot)}</td><td><a class="btn wa s" target="_blank" rel="noopener" data-p="${w.p||''}" data-t="${encodeURIComponent(`*${D.s.n}* ${MO}\n${w.n}\nউপস্থিত ${H(q.p)} দিন\nওভারটাইম ${H(q.ot)} ঘণ্টা (${N(q.o)})\nকর্তন ${N(q.de)}\nমোট বেতন ${N(q.tot)}`)}" href="#">WA</a></td></tr>`}).join('');t+=`সর্বমোট: ${N(gt)}`;
+return `<div class="card"><div class="r"><input type="month" id="mo" value="${MO}"><button class="btn x" data-a="pr" style="flex:none">🖨 প্রিন্ট</button></div></div><div class="card tw"><table><thead><tr><th>কর্মী</th><th>দিন</th><th>OT ঘ</th><th>বেতন</th><th>OT টাকা</th><th>কর্তন</th><th>মোট</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>সর্বমোট</td><td></td><td></td><td></td><td>${N(go)}</td><td></td><td>${N(gt)}</td><td></td></tr></tfoot></table></div><div class="card">${send(t)}</div>`},
+g(){const s=D.s;return `<div class="card"><h3>সেটিংস</h3><input id="sn" value="${E(s.n)}" placeholder="প্রতিষ্ঠানের নাম"><div class="r"><input id="si1" type="time" value="${s.i}"><input id="so" type="time" value="${s.o}"></div><div class="r"><input id="sd" type="number" value="${s.d}" placeholder="মাসের কর্মদিবস"><input id="sx" type="number" step=".1" value="${s.x}" placeholder="OT গুণক"></div><input id="sc" value="${E(s.cc)}" placeholder="দেশের কোড (88)"><p class="m">OT = ডিউটি শেষের পর কাজের সময়। রেট = দৈনিক বেতন ÷ ডিউটি ঘণ্টা × গুণক।</p><button class="btn" data-a="ss">সংরক্ষণ</button></div><div class="card"><h3>ব্যাকআপ</h3><p class="m">ডেটা এই ব্রাউজারে থাকে। নিয়মিত নিচের লেখা কপি করে রাখুন; ফেরাতে পেস্ট করে চাপুন।</p><textarea id="bk" style="width:100%;height:90px;background:var(--bg);color:var(--t);border:1px solid var(--l);border-radius:12px">${JSON.stringify(D).replace(/</g,'\\u003c')}</textarea><button class="btn x" data-a="rs">রিস্টোর</button></div>`}};
+const TB=[['h','🏠','হোম'],['w','👥','কর্মী'],['a','🕒','হাজিরা'],['f','💰','হিসাব'],['s','📦','মজুদ'],['m','🧾','মাসিক']];
+function R(){$('#co').textContent=D.s.n;$('#v').innerHTML=V[T]();$('#nv').innerHTML=TB.map(b=>`<button class="${b[0]==T?'on':''}" data-a="go" data-i="${b[0]}"><i>${b[1]}</i>${b[2]}</button>`).join('')}
+const A={go:b=>{T=b.dataset.i;ED=null;R()},
+sw:()=>{const o={n:$('#wn').value.trim(),p:$('#wp').value,a:$('#wa').value,d:$('#wd').value,s:+$('#ws').value||0};if(!o.n)return;if(ED)Object.assign(D.w.find(x=>x.id==ED),o);else D.w.push({id:id(),...o});ED=null;S();R()},
+ew:b=>{ED=b.dataset.i;R();scrollTo(0,0)},cw:()=>{ED=null;R()},
+dw:b=>{if(AR!=b.dataset.i){AR=b.dataset.i;b.textContent='নিশ্চিত?';return}D.w=D.w.filter(x=>x.id!=AR);AR=null;S();R()},
+ab:b=>{const a=D.a[DT]=D.a[DT]||{},r=a[b.dataset.i]=a[b.dataset.i]||{};r.x=!r.x;S();R()},
+fill:()=>{const a=D.a[DT]=D.a[DT]||{};D.w.forEach(w=>a[w.id]={i:D.s.i,o:D.s.o});S();R()},
+sf:()=>{const a=+$('#fa').value;if(!a)return;D.t.push({id:id(),d:DT,t:$('#ft').value,a,c:$('#fc').value||'অন্যান্য',n:$('#fn').value});S();R()},
+df:b=>{D.t=D.t.filter(x=>x.id!=b.dataset.i);S();R()},
+si:()=>{const n=$('#in').value.trim();if(!n)return;D.i.push({id:id(),n,u:$('#iu').value||'পিস',q:+$('#iq').value||0,m:+$('#im').value||0});S();R()},
+mv:b=>{const x=D.i.find(i=>i.id==b.dataset.i),q=+$('#q'+x.id).value;if(!q)return;x.q+=q*b.dataset.s;D.m.push({d:Z(),i:x.id,q:q*b.dataset.s});S();R()},
+di:b=>{D.i=D.i.filter(x=>x.id!=b.dataset.i);S();R()},
+ss:()=>{Object.assign(D.s,{n:$('#sn').value||'Noor Fashion',i:$('#si1').value,o:$('#so').value,d:+$('#sd').value||26,x:+$('#sx').value||2,cc:$('#sc').value||'88'});S();R()},
+pr:()=>print(),rs:()=>{try{D=JSON.parse($('#bk').value);S();R()}catch(e){$('#bk').style.borderColor='red'}}};
+document.addEventListener('click',e=>{const w=e.target.closest('.wa');if(w){const p=w.dataset.p||(w.parentNode.querySelector('[data-ph]')||{}).value;w.href='https://wa.me/'+ph(p)+'?text='+w.dataset.t;return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a](b)});
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset.c){const a=D.a[DT]=D.a[DT]||{},r=a[t.dataset.w]=a[t.dataset.w]||{};r[t.dataset.c]=t.value;S();R()}
+else if(t.id=='dt'){DT=t.value||Z();R()}else if(t.id=='mo'){MO=t.value||MO;R()}else if(t.dataset.ph!==undefined){D.s.ph=t.value;S()}});
+$('#gs').onclick=()=>{T='g';R()};R();
+if('serviceWorker'in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.register('sw.js').then(r=>{setInterval(()=>r.update(),36e5);document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});
+navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had)return;const b=document.createElement('div');b.textContent='🔄 নতুন সংস্করণ এসেছে, হালনাগাদ হচ্ছে…';b.style.cssText='position:fixed;top:12px;left:12px;right:12px;z-index:9;background:#c8891d;color:#1b1304;padding:12px;border-radius:12px;text-align:center;font-weight:700';document.body.appendChild(b);setTimeout(()=>location.reload(),1200)})}
+</script></body></html>

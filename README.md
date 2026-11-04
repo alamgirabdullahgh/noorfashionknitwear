@@ -1,2 +1,3 @@
-# noorfashionknitwear
-Noor Fashion Knitwear
+# Noor Fashion
+প্রতিষ্ঠান পরিচালনার অ্যাপ: কর্মী, হাজিরা ও ওভারটাইম, আয়-ব্যয়, মজুদ, মাসিক শিট, WhatsApp।
+`main`-এ push করলেই GitHub Actions নতুন সংস্করণ প্রকাশ করে; অ্যাপ নিজে হালনাগাদ হয়।
