@@ -29,6 +29,7 @@ jobs:
           mkdir www
           cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png www/
           sed -i "s/__VERSION__/$V/g" www/index.html www/sw.js
+          sed -i "s/__BUILD__/${GITHUB_RUN_NUMBER}/g" www/index.html
           echo "APP_VERSION=$V" >> "$GITHUB_ENV"
 
       - name: Create Capacitor Android project
