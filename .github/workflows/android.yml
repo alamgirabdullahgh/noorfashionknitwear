@@ -50,7 +50,7 @@ jobs:
       - name: Branding (status bar colour, splash screen)
         run: |
           RES=android/app/src/main/res
-          sed -i 's/#3F51B5/#0C1222/I;s/#303F9F/#0C1222/I' $RES/values/colors.xml
+          sed -i 's#<item name="windowNoTitle">true</item>#<item name="windowNoTitle">true</item><item name="android:statusBarColor">\#0C1222</item><item name="android:navigationBarColor">\#0C1222</item>#' $RES/values/styles.xml
           find $RES -name 'splash.png' -exec cp splash.png {} \;
 
       - name: Set app icon
