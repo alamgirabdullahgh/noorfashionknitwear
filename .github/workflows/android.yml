@@ -48,6 +48,22 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Add native updater (AutoReply-style) and version code
+        run: |
+          D=android/app/src/main/java/com/noorfashion/app
+          cp native/*.java $D/
+          python3 - <<'PY'
+          p='android/app/src/main/AndroidManifest.xml'
+          s=open(p).read()
+          perm='<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'
+          rec='<receiver android:name=".UpdateReceiver" android:exported="false"/><receiver android:name=".AfterUpdateReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter></receiver>'
+          assert '<application' in s and '</application>' in s
+          s=s.replace('<application',perm+'<application',1).replace('</application>',rec+'</application>',1)
+          open(p,'w').write(s)
+          PY
+          sed -i "s/versionCode 1/versionCode $GITHUB_RUN_NUMBER/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+
       - name: Branding (status bar colour, splash screen)
         run: |
           RES=android/app/src/main/res
@@ -72,7 +88,14 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          set +e
+          ./gradlew assembleDebug --no-daemon > ../build.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            grep -E "error:|\.java:[0-9]+|What went wrong|Execution failed|symbol:" ../build.log | head -30 | while IFS= read -r l; do echo "::error::${l:0:300}"; done
+          fi
+          tail -3 ../build.log
+          exit $code
 
       - name: Collect APK
         run: |
@@ -88,7 +111,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ github.run_number }}"
+          TAG="v1.0.${{ github.run_number }}"
           gh release create "$TAG" out/NoorFashion.apk \
             --title "Noor Fashion $TAG" \
             --notes "Android APK ($APP_VERSION). ফোনে ডাউনলোড করে ইনস্টল করুন।"
