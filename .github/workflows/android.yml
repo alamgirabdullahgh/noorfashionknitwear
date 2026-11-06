@@ -95,6 +95,13 @@ jobs:
           sed -i '/^android {/r /tmp/sign.txt' android/app/build.gradle
           grep -n "signingConfigs" -A8 android/app/build.gradle | head -12
 
+      - name: Connect Firebase (google-services.json + SDK)
+        run: |
+          cp google-services.json android/app/google-services.json
+          # Capacitor's template already applies the google-services plugin when this file exists
+          sed -i "/implementation project(':capacitor-android')/a\    implementation platform('com.google.firebase:firebase-bom:33.7.0')\n    implementation 'com.google.firebase:firebase-analytics'" android/app/build.gradle
+          grep -n "firebase" android/app/build.gradle
+
       - name: Build APK
         working-directory: android
         run: |

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "678678254442",
+    "project_id": "noor-fashion-9fb4f",
+    "storage_bucket": "noor-fashion-9fb4f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:678678254442:android:3e5eb37360814b944e4b13",
+        "android_client_info": {
+          "package_name": "com.noorfashion.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJmVnJVChTZDV-OzOcGkLXvRG4kTu0ZJQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
