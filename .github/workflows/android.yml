@@ -124,6 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v1.0.${{ github.run_number }}"
-          gh release create "$TAG" out/NoorFashion.apk \
+          cp out/NoorFashion.apk "out/NoorFashion-$TAG.apk"
+          gh release create "$TAG" "out/NoorFashion-$TAG.apk" out/NoorFashion.apk \
             --title "Noor Fashion $TAG" \
-            --notes "Android APK ($APP_VERSION). ফোনে ডাউনলোড করে ইনস্টল করুন।"
+            --notes "Android APK ($APP_VERSION). ফোনে ইনস্টলের পর অ্যাপের ওপরে নামের পাশে $TAG লেখা দেখা গেলে বুঝবেন নতুনটি চলছে।"

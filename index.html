@@ -162,7 +162,7 @@ const IC={"home": "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z", "u
 TB=[['h','home','হোম'],['w','users','কর্মী'],['a','clock','হাজিরা'],['f','wallet','হিসাব'],['s','box','মজুদ'],['m','file','মাসিক']],
 TT={h:'ড্যাশবোর্ড',w:'কর্মী',a:'হাজিরা',f:'আয়-ব্যয়',s:'মজুদ',m:'মাসিক শিট',g:'সেটিংস'};
 const NB=[['a','clock','হাজিরা'],['h','home','হোম'],['f','wallet','হিসাব']];
-function R(){$('#co').textContent=D.s.n;$('#tt').textContent=TT[T];$('#dd').textContent=new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long'});$('#v').innerHTML=V[T]();$('#nv').innerHTML=NB.map(b=>`<button class="${b[0]==T?'on':''}${b[0]=='h'?' hm':''}" data-a="go" data-i="${b[0]}">${ic(b[1])}<span>${b[2]}</span></button>`).join('')}
+function R(){$('#co').textContent=D.s.n+'  ·  '+verTxt();$('#tt').textContent=TT[T];$('#dd').textContent=new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long'});$('#v').innerHTML=V[T]();$('#nv').innerHTML=NB.map(b=>`<button class="${b[0]==T?'on':''}${b[0]=='h'?' hm':''}" data-a="go" data-i="${b[0]}">${ic(b[1])}<span>${b[2]}</span></button>`).join('')}
 const REPO='alamgirabdullahgh/noorfashionknitwear',VER=(document.querySelector('meta[name=app-version]')||{}).content||'';
 const UP=(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.NoorUpdater)||null;
 let UPD=null,CUR=+((document.querySelector('meta[name=app-build]')||{}).content)||0,CAN=true,BUSY=false,PEND=null,LAST=0;
