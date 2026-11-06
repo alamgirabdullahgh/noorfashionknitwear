@@ -82,7 +82,7 @@ function subscribe(u) {
       unMem = onSnapshot(collection(db, 'members'), q => {
         members = q.docs.map(d => ({ id: d.id, ...d.data() }));
         const n = members.filter(m => m.status === 'pending').length;
-        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → Cloud'); }
+        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → অ্যাকাউন্ট'); }
         render();
       }, () => {});
     }
@@ -225,10 +225,9 @@ function modalRender() {
   const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const row = m => `<div class="mr"><div><b>${esc(m.name || m.email)}${m.title ? ' — ' + esc(m.title) : ''}</b>${esc(m.email)} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
     ${m.id === user.uid ? '' : (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '')}</div>`;
-  cd.innerHTML = `<h3>☁️ ক্লাউড সিঙ্ক চালু</h3><p>${prof && prof.name ? esc(prof.name) + (prof.title ? ' — ' + esc(prof.title) : '') + '<br>' : ''}${esc(user.email)}${isAdm ? ' · <b>অ্যাডমিন</b>' : ''}<br>${esc(syncLine())}</p>
-    <button class="pr" id="nfs">এখনই সিঙ্ক করুন</button><button id="nfo">লগআউট</button><button id="nfx">বন্ধ</button>
+  cd.innerHTML = `<h3>👤 আমার অ্যাকাউন্ট</h3><p>${prof && prof.name ? esc(prof.name) + (prof.title ? ' — ' + esc(prof.title) : '') + '<br>' : ''}${esc(user.email)}${isAdm ? ' · <b>অ্যাডমিন</b>' : ''}${syncMsg ? '<br>' + esc(syncMsg) : ''}</p>
+    <button id="nfo">লগআউট</button><button id="nfx">বন্ধ</button>
     ${isAdm ? `<h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('') || ''}` : ''}`;
-  cd.querySelector('#nfs').onclick = () => { LS.setItem('nf_dirty', '1'); push(); };
   cd.querySelector('#nfo').onclick = () => { close(); signOut(auth); };
   cd.querySelector('#nfx').onclick = close;
   cd.querySelectorAll('[data-ap]').forEach(b => b.onclick = () => decide(b.dataset.ap, 'approved'));
