@@ -82,4 +82,24 @@ public class UpdaterPlugin extends Plugin {
             }
         }).start();
     }
+
+    @PluginMethod
+    public void share(PluginCall call) {
+        try {
+            android.content.Context c = getContext();
+            Uri u = ApkShareProvider.uri(c);
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("application/vnd.android.package-archive");
+            i.putExtra(Intent.EXTRA_STREAM, u);
+            i.putExtra(Intent.EXTRA_SUBJECT, "Noor Fashion");
+            i.setClipData(android.content.ClipData.newRawUri(ApkShareProvider.NAME, u));
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent ch = Intent.createChooser(i, "Noor Fashion");
+            ch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(ch);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("share failed: " + e.getClass().getSimpleName());
+        }
+    }
 }

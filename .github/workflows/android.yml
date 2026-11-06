@@ -56,7 +56,7 @@ jobs:
           p='android/app/src/main/AndroidManifest.xml'
           s=open(p).read()
           perm='<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'
-          rec='<receiver android:name=".UpdateReceiver" android:exported="false"/><receiver android:name=".AfterUpdateReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter></receiver>'
+          rec='<receiver android:name=".UpdateReceiver" android:exported="false"/><receiver android:name=".AfterUpdateReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter></receiver><provider android:name=".ApkShareProvider" android:authorities="com.noorfashion.app.apkshare" android:exported="false" android:grantUriPermissions="true"/>'
           assert '<application' in s and '</application>' in s
           s=s.replace('<application',perm+'<application',1).replace('</application>',rec+'</application>',1)
           open(p,'w').write(s)
