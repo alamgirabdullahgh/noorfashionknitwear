@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 const orgRef = () => doc(db, 'org', 'main');
 
-let user = null, prof = null, isAdm = false, members = [], regName = '', mode = 'login';
+let user = null, prof = null, isAdm = false, members = [], regName = '', regTitle = '', mode = 'login';
 let unProf = null, unAdm = null, unMem = null, unOrg = null;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
@@ -54,7 +54,7 @@ async function ensureProfile(u) {
   const mref = doc(db, 'members', u.uid);
   const snap = await getDoc(mref);
   if (snap.exists()) return;
-  const name = regName || (u.email || '').split('@')[0];
+  const name = regName || (u.email || '').split('@')[0], title = regTitle || '';
   let booted = true;
   try { booted = (await getDoc(doc(db, 'config', 'bootstrap'))).exists(); } catch (e) { booted = true; }
   if (!booted) {
@@ -63,12 +63,12 @@ async function ensureProfile(u) {
       const b = writeBatch(db), at = Date.now();
       b.set(doc(db, 'config', 'bootstrap'), { uid: u.uid, email: u.email, at });
       b.set(doc(db, 'admins', u.uid), { email: u.email, at });
-      b.set(mref, { email: u.email, name, status: 'approved', role: 'admin', at });
+      b.set(mref, { email: u.email, name, title, status: 'approved', role: 'admin', at });
       await b.commit();
       return;
     } catch (e) { /* someone else claimed it first: fall through */ }
   }
-  await setDoc(mref, { email: u.email, name, status: 'pending', role: 'staff', at: Date.now() });
+  await setDoc(mref, { email: u.email, name, title, status: 'pending', role: 'staff', at: Date.now() });
 }
 function subscribe(u) {
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
@@ -189,7 +189,7 @@ function lockRender() {
     const reg = mode === 'register';
     cd.innerHTML = `<h3>Noor Fashion</h3><p>প্রতিষ্ঠানের অ্যাপ — প্রবেশ করতে লগইন করুন। নতুন অ্যাকাউন্ট অ্যাডমিনের অনুমোদনের পর চালু হবে।</p>
       <div class="tabs"><button class="${reg ? '' : 'pr'}" id="nft1">লগইন</button><button class="${reg ? 'pr' : ''}" id="nft2">নতুন অ্যাকাউন্ট</button></div>
-      ${reg ? '<input id="nfn" placeholder="আপনার নাম" autocomplete="name">' : ''}
+      ${reg ? '<input id="nfn" placeholder="আপনার নাম" autocomplete="name"><input id="nfd" placeholder="পদবী (যেমন: ম্যানেজার, সুপারভাইজার)">' : ''}
       <input id="nfm" type="email" placeholder="ইমেইল" autocomplete="username"><input id="nfp" type="password" placeholder="পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)" autocomplete="${reg ? 'new-password' : 'current-password'}">${er}
       <button class="pr" id="nfgo">${reg ? 'অ্যাকাউন্ট খুলুন' : 'লগইন'}</button>${reg ? '' : '<br><a id="nff">পাসওয়ার্ড ভুলে গেছেন?</a>'}`;
     cd.querySelector('#nft1').onclick = () => { mode = 'login'; msg = ''; render(); };
@@ -197,10 +197,10 @@ function lockRender() {
     const e = () => cd.querySelector('#nfe');
     cd.querySelector('#nfgo').onclick = async () => {
       const m = cd.querySelector('#nfm').value.trim(), p = cd.querySelector('#nfp').value;
-      const n = reg ? cd.querySelector('#nfn').value.trim() : '';
-      if (!m || !p || (reg && !n)) { e().textContent = reg ? 'নাম, ইমেইল ও পাসওয়ার্ড দিন' : 'ইমেইল ও পাসওয়ার্ড দিন'; return; }
+      const n = reg ? cd.querySelector('#nfn').value.trim() : '', t = reg ? cd.querySelector('#nfd').value.trim() : '';
+      if (!m || !p || (reg && (!n || !t))) { e().textContent = reg ? 'নাম, পদবী, ইমেইল ও পাসওয়ার্ড দিন' : 'ইমেইল ও পাসওয়ার্ড দিন'; return; }
       e().textContent = 'অপেক্ষা করুন…';
-      try { if (reg) { regName = n; await createUserWithEmailAndPassword(auth, m, p); } else await signInWithEmailAndPassword(auth, m, p); msg = ''; }
+      try { if (reg) { regName = n; regTitle = t; await createUserWithEmailAndPassword(auth, m, p); } else await signInWithEmailAndPassword(auth, m, p); msg = ''; }
       catch (x) { msg = errText(x); lockKey = ''; render(); }
     };
     const f = cd.querySelector('#nff');
@@ -223,9 +223,9 @@ function modalRender() {
   const cd = modal.querySelector('.cd');
   if (state() !== 'ok') { modal.remove(); modal = null; return; }
   const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const row = m => `<div class="mr"><div><b>${esc(m.name || m.email)}</b>${esc(m.email)} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
+  const row = m => `<div class="mr"><div><b>${esc(m.name || m.email)}${m.title ? ' — ' + esc(m.title) : ''}</b>${esc(m.email)} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
     ${m.id === user.uid ? '' : (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '')}</div>`;
-  cd.innerHTML = `<h3>☁️ ক্লাউড সিঙ্ক চালু</h3><p>${esc(user.email)}${isAdm ? ' · <b>অ্যাডমিন</b>' : ''}<br>${esc(syncLine())}</p>
+  cd.innerHTML = `<h3>☁️ ক্লাউড সিঙ্ক চালু</h3><p>${prof && prof.name ? esc(prof.name) + (prof.title ? ' — ' + esc(prof.title) : '') + '<br>' : ''}${esc(user.email)}${isAdm ? ' · <b>অ্যাডমিন</b>' : ''}<br>${esc(syncLine())}</p>
     <button class="pr" id="nfs">এখনই সিঙ্ক করুন</button><button id="nfo">লগআউট</button><button id="nfx">বন্ধ</button>
     ${isAdm ? `<h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('') || ''}` : ''}`;
   cd.querySelector('#nfs').onclick = () => { LS.setItem('nf_dirty', '1'); push(); };
