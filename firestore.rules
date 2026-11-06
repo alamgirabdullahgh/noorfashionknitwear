@@ -1,9 +1,43 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each signed-in user can read/write only their own document
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isApproved() { return signedIn() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.status == 'approved'; }
+    // The very first registered account claims the admin role (bootstrap doc + admin doc + member doc in one batch)
+    function firstAdminClaim(uid) {
+      return !exists(/databases/$(database)/documents/config/bootstrap)
+          && getAfter(/databases/$(database)/documents/config/bootstrap).data.uid == uid;
+    }
+
+    match /config/bootstrap {
+      allow read: if signedIn();
+      allow create: if signedIn()
+                    && !exists(/databases/$(database)/documents/config/bootstrap)
+                    && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /admins/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && firstAdminClaim(uid);
+    }
+
+    // One profile per account: pending until an admin approves it
+    match /members/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.email == request.auth.token.email
+                    && (request.resource.data.status == 'pending'
+                        || (request.resource.data.status == 'approved' && firstAdminClaim(uid)));
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt', 'decidedBy']);
+      allow delete: if isAdmin();
+    }
+
+    // Shared organisation data: only approved members
+    match /org/main {
+      allow read, write: if isApproved();
     }
   }
 }
