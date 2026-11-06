@@ -32,6 +32,14 @@ jobs:
           sed -i "s/__BUILD__/${GITHUB_RUN_NUMBER}/g" www/index.html
           echo "APP_VERSION=$V" >> "$GITHUB_ENV"
 
+      - name: Bundle Firebase cloud sync (Auth + Firestore)
+        run: |
+          mkdir cb && cp cloud-src.js cb/ && cd cb
+          npm init -y >/dev/null
+          npm install firebase@10.14.1 esbuild --silent
+          npx esbuild cloud-src.js --bundle --minify --format=iife --outfile=../www/cloud.js
+          ls -la ../www/cloud.js
+
       - name: Create Capacitor Android project
         run: |
           npm init -y >/dev/null
