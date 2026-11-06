@@ -41,7 +41,7 @@ jobs:
             "appId": "com.noorfashion.app",
             "appName": "Noor Fashion",
             "webDir": "www",
-            "backgroundColor": "#0c1222",
+            "backgroundColor": "#ffffff",
             "android": { "allowMixedContent": false }
           }
           JSON
@@ -67,7 +67,7 @@ jobs:
       - name: Branding (status bar colour, splash screen)
         run: |
           RES=android/app/src/main/res
-          sed -i 's#<item name="windowNoTitle">true</item>#<item name="windowNoTitle">true</item><item name="android:statusBarColor">\#0C1222</item><item name="android:navigationBarColor">\#0C1222</item>#' $RES/values/styles.xml
+          sed -i 's#<item name="windowNoTitle">true</item>#<item name="windowNoTitle">true</item><item name="android:statusBarColor">\#000000</item><item name="android:navigationBarColor">\#000000</item>#' $RES/values/styles.xml
           find $RES -name 'splash.png' -exec cp splash.png {} \;
 
       - name: Set app icon
