@@ -41,6 +41,51 @@ nav button.hm{flex:0 0 72px;height:72px;margin-top:-30px;border-radius:50%;backg
 nav button.hm svg{width:26px;height:26px}nav button.hm.on{background:linear-gradient(145deg,#f6e3a8,#b8923a);color:#1a1405}nav button.hm:active{transform:scale(.94)}
 #up{width:164px;height:52px;padding:0;bottom:calc(122px + env(safe-area-inset-bottom,0px));font-size:17px;background:linear-gradient(135deg,#f6e3a8,#b8923a)}
 #up.bz{background:linear-gradient(90deg,#d9b560 var(--p,0%),#26304d var(--p,0%));color:#fff;text-shadow:0 0 6px #000a}
+
+/* ===== Premium design layer: restraint, one accent, hairlines, strong hierarchy ===== */
+:root{--bg:#f6f5f1;--c:#fff;--t:#0e1424;--m:#7a8091;--g:#9a7424;--g2:#d8b45a;--l:#e9e6de;--sh:0 1px 0 #0e14240a;--in:#f1efe9}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#070a12;--c:#0f1522;--t:#f1ece0;--m:#8a91a6;--g:#d8b45a;--l:#1b2335;--in:#151c2b}}
+header{background:none;color:var(--t);padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 20px;border-radius:0}
+#mb{background:var(--c);border-color:var(--l);color:var(--t)}#mb i{border-color:var(--c)}
+#co{color:var(--g);letter-spacing:.24em;font-size:11px}
+h1{margin:18px 0 2px;font-size:30px;font-weight:700;letter-spacing:-.02em}header small{opacity:1;color:var(--m);font-size:13px}
+main{margin-top:0;padding:0 16px 130px}
+.card,.k{border-radius:20px;box-shadow:none;border:1px solid var(--l)}
+.card{padding:18px}
+h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--m);font-weight:700;margin:0 0 12px}
+.hero{border-radius:24px;padding:24px 22px 20px;margin-bottom:14px;background:linear-gradient(150deg,#16234a 0,#0a0f1e 75%);box-shadow:0 24px 40px -24px #0a0f1ecc;border:0}
+.hero:after{display:none}
+.hero span{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.6;font-weight:600}
+.hero b{font-size:46px;line-height:1.15;margin:6px 0 18px;letter-spacing:-.02em;background:none;color:#f4e3b0;-webkit-text-fill-color:#f4e3b0}
+.hs{display:flex;border-top:1px solid #ffffff1f;padding-top:14px}.hs>div{flex:1}.hs>div+div{border-left:1px solid #ffffff1f;padding-left:16px}
+.hs small{display:block;font-size:11.5px;opacity:.55;letter-spacing:.08em}.hs b{font-size:19px!important;margin:2px 0 0!important;line-height:1.3!important;-webkit-text-fill-color:currentColor!important;color:inherit!important;background:none}
+.hs .p{color:#76e2b2!important}.hs .q{color:#ff9fa8!important}
+.g{gap:0;background:var(--c);border:1px solid var(--l);border-radius:20px;overflow:hidden;margin-bottom:14px}
+.g .k{border:0;border-radius:0;padding:18px}.g .k:nth-child(odd){border-right:1px solid var(--l)}.g .k:nth-child(-n+2){border-bottom:1px solid var(--l)}
+.k svg{width:20px;height:20px;padding:0;background:none;color:var(--g);margin-bottom:10px}
+.k b{font-size:26px;font-weight:700;letter-spacing:-.01em}.k span{font-size:12px}
+.em{text-align:center;padding:26px 20px}.em b{font-size:18px}.em p{margin:6px 0 16px}
+.al{border-radius:16px;border:1px solid #c8414f33;background:#c8414f12}
+input,select,textarea{background:var(--in);border:1px solid transparent;border-radius:14px;padding:13px 15px}
+input:focus,select:focus,textarea:focus{background:var(--c);border-color:var(--g2);box-shadow:0 0 0 4px #d8b45a26}
+.btn{background:linear-gradient(180deg,#e2c373,#c39a3f);color:#1a1405;box-shadow:none;border-radius:14px;padding:13px 22px;letter-spacing:.01em}
+.btn.wa{background:#1fa95b;box-shadow:none}.btn.x{background:transparent}
+.row{padding:13px 0}
+.av{border-radius:14px;background:#0e1830;color:var(--g2)}
+nav{max-width:360px;background:color-mix(in srgb,var(--c) 92%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--l);border-radius:30px;box-shadow:0 18px 36px -16px #0e142455;padding:8px 10px}
+nav button{color:var(--m);font-weight:600;position:relative}nav .on{background:none;color:var(--t)}
+nav button:not(.hm).on:after{content:'';position:absolute;bottom:0;width:4px;height:4px;border-radius:50%;background:var(--g)}
+nav button.hm{background:#0e1830;color:var(--g2);width:68px;height:68px;flex:0 0 68px;margin-top:-28px;box-shadow:0 14px 24px -10px #0e1830cc,0 0 0 6px var(--bg)}
+nav button.hm.on{background:#0e1830;color:var(--g2)}nav button.hm span{color:#ffffffb8}
+#up{background:linear-gradient(180deg,#e2c373,#c39a3f);box-shadow:0 14px 26px -10px #9a7424bb}
+.r{flex-wrap:nowrap}.r>input,.r>select{min-width:0}
+input[type=time]{padding:13px 10px;font-size:14px;text-align:center}input[type=time]::-webkit-calendar-picker-indicator{display:none}
+.r>.btn.s{flex:none;padding:12px 14px;white-space:nowrap}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--ok:#52d6a4;--no:#ff808b}}
+header #mb{background:var(--c);border-color:var(--l);color:var(--t)}header #mb i{border-color:var(--bg)}
+nav{background:color-mix(in srgb,var(--c) 97%,transparent)!important}
+#sb{box-shadow:none;visibility:hidden;transition:transform .27s cubic-bezier(.2,.8,.2,1),visibility 0s .27s}
+body.mo #sb{visibility:visible;box-shadow:24px 0 60px -10px #000a;transition-delay:0s}
 @media print{nav,header,.sb,[data-a]{display:none!important}body{background:#fff}main{margin:0}}
 #mb{position:relative;width:38px;height:38px;border-radius:50%;border:1px solid #ffffff26;background:#ffffff12;color:#fff;display:grid;place-items:center;padding:0;margin-right:12px;flex:none}
 #mb i{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;background:#ff7a70;border:2px solid #16234a;display:none}#mb.u i{display:block}
@@ -74,9 +119,9 @@ function send(t,p){return `<div class="sb"><input type="tel" data-ph placeholder
 const tx=d=>D.t.filter(x=>x.d==d),sum=(a,t)=>a.filter(x=>x.t==t).reduce((s,x)=>s+x.a,0);
 const V={
 h(){const a=D.a[Z()]||{},pr=D.w.filter(w=>day(a[w.id]).p).length,t=tx(Z()),mt=D.t.filter(x=>x.d.startsWith(Z().slice(0,7))),pm=D.w.reduce((s,w)=>s+pay(w,Z().slice(0,7)).tot,0),low=D.i.filter(x=>x.q<=x.m),mi=sum(mt,'i'),mo=sum(mt,'o');
-return `<div class="hero"><span>এই মাসের নিট লাভ</span><b>${N(mi-mo)}</b><div class="ch"><i class="p">↑ আয় ${N(mi)}</i><i class="q">↓ ব্যয় ${N(mo)}</i></div></div>${low.length?`<div class="al">⚠ ${H(low.length)} টি মালের মজুদ কম: ${low.slice(0,3).map(x=>E(x.n)).join(', ')}</div>`:''}
+return `<div class="hero"><span>এই মাসের নিট লাভ</span><b>${N(mi-mo)}</b><div class="hs"><div><small>আয়</small><b class="p">${N(mi)}</b></div><div><small>ব্যয়</small><b class="q">${N(mo)}</b></div></div></div>${low.length?`<div class="al">⚠ ${H(low.length)} টি মালের মজুদ কম: ${low.slice(0,3).map(x=>E(x.n)).join(', ')}</div>`:''}
 <div class="g"><div class="k">${ic('users')}<b>${H(D.w.length)}</b><span>মোট কর্মী</span></div><div class="k">${ic('clock')}<b>${H(pr)}<small class="m"> / ${H(D.w.length)}</small></b><span>আজ উপস্থিত</span></div><div class="k">${ic('up')}<b class="p">${N(sum(t,'i'))}</b><span>আজকের আয়</span></div><div class="k">${ic('dn')}<b class="q">${N(sum(t,'o'))}</b><span>আজকের ব্যয়</span></div></div>
-<div class="card"><h3>এই মাসের সারসংক্ষেপ</h3><div class="row"><span>বেতন (আনুমানিক)</span><b>${N(pm)}</b></div><div class="row"><span>কম মজুদ</span><b class="${low.length?'q':''}">${H(low.length)} টি</b></div></div>`},
+${D.w.length?'':`<div class="card em"><b>শুরু করুন</b><p class="m">প্রথমে কর্মী যোগ করুন, তারপর হাজিরা, আয়-ব্যয় ও মজুদ লিখুন।</p><button class="btn" data-a="go" data-i="w">+ প্রথম কর্মী যোগ করুন</button></div>`}<div class="card"><h3>এই মাসের সারসংক্ষেপ</h3><div class="row"><span>বেতন (আনুমানিক)</span><b>${N(pm)}</b></div><div class="row"><span>কম মজুদ</span><b class="${low.length?'q':''}">${H(low.length)} টি</b></div></div>`},
 w(){const e=D.w.find(x=>x.id==ED)||{};return `<div class="card"><h3>${ED?'কর্মী সম্পাদনা':'নতুন কর্মী'}</h3><input id="wn" placeholder="নাম" value="${E(e.n)}"><input id="wp" type="tel" placeholder="ফোন নম্বর" value="${E(e.p)}"><input id="wa" placeholder="ঠিকানা" value="${E(e.a)}"><div class="r"><input id="wd" placeholder="পদবী" value="${E(e.d)}"><input id="ws" type="number" placeholder="মাসিক বেতন" value="${e.s||''}"></div><button class="btn" data-a="sw">${ED?'হালনাগাদ':'যুক্ত করুন'}</button> ${ED?'<button class="btn x" data-a="cw">বাতিল</button>':''}</div>`+
 D.w.map(w=>`<div class="card"><div class="wk"><div class="av">${E(w.n).slice(0,1)}</div><div class="wi"><b>${E(w.n)}</b> <span class="m">${E(w.d)}</span><div class="m">${E(w.p)} · ${E(w.a)}</div></div><b>${N(w.s)}</b></div><div class="r" style="margin-top:10px"><button class="btn s x" data-a="ew" data-i="${w.id}">সম্পাদনা</button><button class="btn s x" data-a="dw" data-i="${w.id}">মুছুন</button></div></div>`).join('')||'<p class="m">কোনো কর্মী নেই। উপরে প্রথম কর্মী যুক্ত করুন।</p>'},
 a(){const a=D.a[DT]||{};let t=`*${D.s.n}* হাজিরা ${DT}\n`;const rows=D.w.map(w=>{const r=a[w.id]||{},q=day(r);t+=`${w.n}: ${r.x?'অনুপস্থিত':(r.i||'-')+'–'+(r.o||'-')+' OT '+H(q.ot)+'ঘ'}\n`;
@@ -89,9 +134,9 @@ s(){let t=`*${D.s.n}* মজুদ\n`+D.i.map(x=>`${x.n}: ${H(x.q)} ${x.u}`).joi
 return `<div class="card"><h3>নতুন মালামাল</h3><input id="in" placeholder="মালের নাম"><div class="r"><input id="iu" placeholder="একক (পিস/কেজি)"><input id="iq" type="number" placeholder="শুরুর পরিমাণ"><input id="im" type="number" placeholder="সর্বনিম্ন"></div><button class="btn" data-a="si">যুক্ত করুন</button></div>`+
 D.i.map(x=>`<div class="card"><div class="row" style="border:0"><b>${E(x.n)}</b><b class="${x.q<=x.m?'q':'p'}">${H(x.q)} ${E(x.u)}</b></div><div class="r"><input type="number" id="q${x.id}" placeholder="পরিমাণ"><button class="btn s" data-a="mv" data-i="${x.id}" data-s="1">＋ জমা</button><button class="btn s x" data-a="mv" data-i="${x.id}" data-s="-1">− খরচ</button><button class="btn s x" data-a="di" data-i="${x.id}">×</button></div></div>`).join('')+
 `<div class="card"><h3>সাম্প্রতিক লেনদেন</h3>${D.m.slice(-10).reverse().map(l=>{const x=D.i.find(i=>i.id==l.i);return x?`<div class="row"><span>${E(x.n)} <span class="m">${l.d}</span></span><b class="${l.q>0?'p':'q'}">${l.q>0?'+':'−'}${H(Math.abs(l.q))} ${E(x.u)}</b></div>`:''}).join('')||'<p class="m">এখনো কোনো জমা/খরচ নেই।</p>'}</div><div class="card">${send(t)}</div>`},
-m(){let t=`*${D.s.n}* মাসিক শিট ${MO}\n`,gt=0,go=0;const rows=D.w.map(w=>{const q=pay(w,MO);gt+=q.tot;go+=q.ot;t+=`${w.n}: ${H(q.p)} দিন, OT ${H(q.ot)}ঘ, মোট ${N(q.tot)}\n`;
+m(){let t=`*${D.s.n}* মাসিক শিট ${MO}\n`,gt=0,go=0,gh=0,gs=0,gd=0;const rows=D.w.map(w=>{const q=pay(w,MO);gt+=q.tot;go+=q.o;gh+=q.ot;gs+=w.s;gd+=q.de;t+=`${w.n}: ${H(q.p)} দিন, OT ${H(q.ot)}ঘ, মোট ${N(q.tot)}\n`;
 return `<tr><td>${E(w.n)}</td><td>${H(q.p)}</td><td>${H(q.ot)}</td><td>${N(w.s)}</td><td>${N(q.o)}</td><td>${N(q.de)}</td><td>${N(q.tot)}</td><td><a class="btn wa s" target="_blank" rel="noopener" data-p="${w.p||''}" data-t="${encodeURIComponent(`*${D.s.n}* ${MO}\n${w.n}\nউপস্থিত ${H(q.p)} দিন\nওভারটাইম ${H(q.ot)} ঘণ্টা (${N(q.o)})\nকর্তন ${N(q.de)}\nমোট বেতন ${N(q.tot)}`)}" href="#">WA</a></td></tr>`}).join('');t+=`সর্বমোট: ${N(gt)}`;
-return `<div class="card"><div class="r"><input type="month" id="mo" value="${MO}"><button class="btn x" data-a="pr" style="flex:none">🖨 প্রিন্ট</button></div></div><div class="card tw"><table><thead><tr><th>কর্মী</th><th>দিন</th><th>OT ঘ</th><th>বেতন</th><th>OT টাকা</th><th>কর্তন</th><th>মোট</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>সর্বমোট</td><td></td><td></td><td></td><td>${N(go)}</td><td></td><td>${N(gt)}</td><td></td></tr></tfoot></table></div><div class="card">${send(t)}</div>`},
+return `<div class="card"><div class="r"><input type="month" id="mo" value="${MO}"><button class="btn x" data-a="pr" style="flex:none">🖨 প্রিন্ট</button></div></div><div class="card tw"><table><thead><tr><th>কর্মী</th><th>দিন</th><th>OT ঘ</th><th>বেতন</th><th>OT টাকা</th><th>কর্তন</th><th>মোট</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>সর্বমোট</td><td></td><td>${H(gh)}</td><td>${N(gs)}</td><td>${N(go)}</td><td>${N(gd)}</td><td>${N(gt)}</td><td></td></tr></tfoot></table></div><div class="card">${send(t)}</div>`},
 g(){const s=D.s;return `<div class="card"><h3>সেটিংস</h3><input id="sn" value="${E(s.n)}" placeholder="প্রতিষ্ঠানের নাম"><div class="r"><input id="si1" type="time" value="${s.i}"><input id="so" type="time" value="${s.o}"></div><div class="r"><input id="sd" type="number" value="${s.d}" placeholder="মাসের কর্মদিবস"><input id="sx" type="number" step=".1" value="${s.x}" placeholder="OT গুণক"></div><input id="sc" value="${E(s.cc)}" placeholder="দেশের কোড (88)"><p class="m">OT = ডিউটি শেষের পর কাজের সময়। রেট = দৈনিক বেতন ÷ ডিউটি ঘণ্টা × গুণক।</p><button class="btn" data-a="ss">সংরক্ষণ</button></div><div class="card"><h3>ব্যাকআপ</h3><p class="m">ডেটা এই ব্রাউজারে থাকে। নিয়মিত নিচের লেখা কপি করে রাখুন; ফেরাতে পেস্ট করে চাপুন।</p><textarea id="bk" style="width:100%;height:90px;background:var(--bg);color:var(--t);border:1px solid var(--l);border-radius:12px">${JSON.stringify(D).replace(/</g,'\\u003c')}</textarea><button class="btn x" data-a="rs">রিস্টোর</button></div>`}};
 const IC={"home": "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z", "users": "M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.2a3.5 3.5 0 0 1 0 6.6", "clock": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2", "wallet": "M3 7a2 2 0 0 1 2-2h13v4M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2zM16 14h2", "box": "M21 8l-9-5-9 5v8l9 5 9-5zM3.3 7.5L12 12.5l8.7-5M12 12.5V21", "file": "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6", "set": "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4", "up": "M7 17L17 7M8 7h9v9", "dn": "M17 7L7 17M16 17H7V8"},ic=n=>`<svg viewBox="0 0 24 24"><path d="${IC[n]}"/></svg>`,
 TB=[['h','home','হোম'],['w','users','কর্মী'],['a','clock','হাজিরা'],['f','wallet','হিসাব'],['s','box','মজুদ'],['m','file','মাসিক']],
