@@ -45,6 +45,25 @@ h3{margin:0 0 10px;font-size:13px;font-weight:700;letter-spacing:.02em;color:var
 .em{text-align:center;padding:22px 16px}.em b{font-size:18px}.em p{margin:6px 0 16px}
 .al{background:#c8414f12;color:var(--no);border:1px solid #c8414f33;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600}
 
+/* home: attendance cards */
+.an>.wc{animation:none}.an>.wc.in{animation:up .42s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*45ms)}
+.wc{position:relative;overflow:hidden;background:var(--c);border:1px solid var(--l);border-radius:16px;box-shadow:var(--sh);padding:12px;margin:0 0 12px}
+.wc:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3.5px;background:var(--ok);transition:background .25s}.wc.ab:before{background:var(--no)}
+.wc .wh{display:flex;align-items:center;gap:10px;min-width:0;padding:0 0 10px 4px;margin:0 0 10px;border-bottom:1px solid var(--l)}
+.wc .wv{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 13px 'NF','Noto Sans Bengali',sans-serif;background:var(--pr);color:var(--pt)}
+.wc .wn{flex:1;min-width:0;font-size:15.5px;font-weight:700;line-height:1.3;color:var(--pr);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wc .wd{flex:none;max-width:42%;font-size:11.5px;font-weight:600;color:var(--m);background:var(--pl);border-radius:999px;padding:3px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wc .wd:empty{display:none}
+.wc .wl{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.18fr);gap:6px;padding-left:4px}
+.wc .wl>*{position:relative;min-width:0;margin:0;border:0;border-radius:11px;background:var(--in);color:var(--t);font:inherit;padding:6px 2px 7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;white-space:nowrap;text-align:center;transition:transform .12s,opacity .2s,background .2s}
+.wc .wl small{font-size:9.5px;font-weight:600;letter-spacing:.02em;color:var(--m)}
+.wc .wl b{font-size:13.5px;font-weight:700;line-height:1.35;white-space:nowrap}
+.wc .st{cursor:pointer}.wc .st b{display:inline-flex;align-items:center;gap:5px;color:var(--ok)}.wc .st i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.wc .st{background:color-mix(in srgb,var(--ok) 13%,transparent)}.wc.ab .st{background:color-mix(in srgb,var(--no) 13%,transparent)}.wc.ab .st b{color:var(--no)}
+.wc .tm{cursor:pointer}.wc .tm input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;font-size:16px;cursor:pointer}
+.wc .tm:active,.wc .st:active{transform:scale(.96)}
+.wc .ot.h b{color:#b8862b}@media(prefers-color-scheme:dark){.wc .ot.h b{color:#e0b85a}}
+.wc.ab .tm,.wc.ab .ot{opacity:.42}.wc.ab .tm{pointer-events:none}
+@media(max-width:350px){.wc{padding:10px}.wc .wl{gap:4px}.wc .wl b{font-size:12px}.wc .wl small{font-size:9px}}
 /* forms + buttons */
 input,select,textarea{width:100%;padding:12px 14px;border:1px solid var(--l);border-radius:10px;background:var(--in);color:var(--t);font:inherit;margin:4px 0;outline:0;transition:.15s}
 input:focus,select:focus,textarea:focus{background:var(--c);border-color:var(--pr);box-shadow:0 0 0 3px rgba(128,128,128,.25)}
@@ -92,7 +111,7 @@ html.nflock body>*:not(.nfl){visibility:hidden!important}</style><script>if(!loc
 <nav id="nv"></nav>
 <aside id="sb"></aside><div id="sc2"></div><button id="up" data-a="upd"></button>
 <script>
-const K='nf1',Z=()=>new Date().toISOString().slice(0,10);
+const K='nf1',Z=()=>new Date().toLocaleDateString('en-CA');
 let D={w:[],a:{},t:[],i:[],m:[],s:{n:'Noor Fashion',i:'08:00',o:'17:00',d:26,x:2,cc:'88',ph:''}},T='h',DT=Z(),MO=Z().slice(0,7),ED=null,AR=null;
 try{D=Object.assign(D,JSON.parse(localStorage.getItem(K)))}catch(e){}
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),S=()=>{try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}if(window.NFC)NFC.dirty()},$=s=>document.querySelector(s),id=()=>Math.random().toString(36).slice(2,9),
@@ -104,15 +123,15 @@ function pay(w,ym){let p=0,ab=0,ot=0;for(const d in D.a)if(d.startsWith(ym)){con
 const dl=w.s/D.s.d,o=ot*dl/sh()*D.s.x,de=ab*dl;return{p,ab,ot,o,de,tot:Math.round(w.s-de+o)}}
 function send(t,p){return `<div class="sb"><input type="tel" data-ph placeholder="WhatsApp নম্বর (01XXXXXXXXX)" value="${p||D.s.ph||''}"><a class="btn wa" target="_blank" rel="noopener" data-t="${encodeURIComponent(t)}" href="#">পাঠান</a></div>`}
 const tx=d=>D.t.filter(x=>x.d==d),sum=(a,t)=>a.filter(x=>x.t==t).reduce((s,x)=>s+x.a,0);
-function wkc(){const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toLocaleDateString('en-CA'))}
-const v=days.map(d=>[sum(tx(d),'i'),sum(tx(d),'o')]),mx=Math.max(1,...v.flat());
-return `<div class="card"><h3>গত ৭ দিন · আয় ও ব্যয়</h3><svg viewBox="0 0 280 100" style="width:100%;height:auto;stroke:none">${v.map((p,i)=>{const x=i*40+8,a=Math.max(p[0]/mx*72,3),b=Math.max(p[1]/mx*72,3);return `<rect x="${x}" y="${80-a}" width="12" height="${a}" rx="4" fill="#52d6a4"/><rect x="${x+14}" y="${80-b}" width="12" height="${b}" rx="4" fill="#ff808b" opacity=".85"/><text x="${x+13}" y="96" text-anchor="middle" font-size="9" fill="#8a91a6">${days[i].slice(8)}</text>`}).join('')}</svg></div>`}
 function rec(){const l=D.t.slice().sort((a,b)=>b.d.localeCompare(a.d)).slice(0,4);return l.length?`<div class="card"><h3>সাম্প্রতিক লেনদেন</h3>${l.map(x=>`<div class="row"><span class="wk"><span class="av" style="width:38px;height:38px;font-size:15px">${E(x.c||'?').slice(0,1)}</span><span><b>${E(x.c)}</b><br><span class="m">${x.d}</span></span></span><b class="${x.t=='i'?'p':'q'}">${x.t=='i'?'+':'−'}${N(x.a)}</b></div>`).join('')}</div>`:''}
+const BD=s=>String(s).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]),bt=t=>/^\d{1,2}:\d{2}/.test(t||'')?BD(t.slice(0,5).replace(/^(\d):/,'0$1:')):'--:--',ot=m=>{m=Math.round(m);const h=Math.floor(m/60),n=m%60;return m?BD(h?h+'ঘ'+(n?' '+n+'মি':''):n+'মি'):'—'};
+function ens(d){if(d>Z())return;const a=D.a[d]=D.a[d]||{};let c=0;D.w.forEach(w=>{if(!a[w.id]){a[w.id]={i:D.s.i,o:D.s.o};c++}});if(c)S()}
+function wcard(w,d,k){const r=(D.a[d]||{})[w.id]||{},ab=!!r.x,q=ab?{ot:0}:day(r),tm=(c,l)=>`<label class=\"tm\"><small>${l}</small><b>${ab?'—':bt(r[c])}</b><input type=\"time\" data-c=\"${c}\" data-w=\"${w.id}\" data-d=\"${d}\" value=\"${r[c]||''}\"${ab?' disabled':''}></label>`;
+return `<div class=\"wc${ab?' ab':''}${k!==undefined?' in':''}\" data-wc=\"${w.id}\"${k!==undefined?` style=\"--i:${k}\"`:''}><div class=\"wh\"><span class=\"wv\">${E([...String(w.n||'?')][0])}</span><b class=\"wn\">${E(w.n)}</b><span class=\"wd\">${E(w.d)}</span></div><div class=\"wl\"><button class=\"st\" data-a=\"pt\" data-i=\"${w.id}\" data-d=\"${d}\"><small>অবস্থা</small><b><i></i>${ab?'অনুপস্থিত':'উপস্থিত'}</b></button>${tm('i','প্রবেশ')}${tm('o','প্রস্থান')}<div class=\"ot${q.ot>0?' h':''}\"><small>ওভারটাইম</small><b>${ab?'—':ot(q.ot*60)}</b></div></div></div>`}
+function dd(){let t=new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long'});if(T=='h'){const a=D.a[Z()]||{};t+=' · উপস্থিত '+H(D.w.filter(w=>a[w.id]&&!a[w.id].x).length)+'/'+H(D.w.length)}$('#dd').textContent=t}
+function upc(id,d){const w=D.w.find(x=>x.id==id),el=document.querySelector('[data-wc=\"'+id+'\"]');if(w&&el)el.outerHTML=wcard(w,d);dd()}
 const V={
-h(){const a=D.a[Z()]||{},pr=D.w.filter(w=>day(a[w.id]).p).length,t=tx(Z()),mt=D.t.filter(x=>x.d.startsWith(Z().slice(0,7))),pm=D.w.reduce((s,w)=>s+pay(w,Z().slice(0,7)).tot,0),low=D.i.filter(x=>x.q<=x.m),mi=sum(mt,'i'),mo=sum(mt,'o');
-return `<div class="hero"><span>এই মাসের নিট লাভ</span><b>${N(mi-mo)}</b><div class="hs"><div><small>আয়</small><b class="p">${N(mi)}</b></div><div><small>ব্যয়</small><b class="q">${N(mo)}</b></div></div></div>${low.length?`<div class="al">⚠ ${H(low.length)} টি মালের মজুদ কম: ${low.slice(0,3).map(x=>E(x.n)).join(', ')}</div>`:''}
-${wkc()}<div class="g"><div class="k">${ic('users')}<b>${H(D.w.length)}</b><span>মোট কর্মী</span></div><div class="k">${ic('clock')}<b>${H(pr)}<small class="m"> / ${H(D.w.length)}</small></b><span>আজ উপস্থিত</span></div><div class="k">${ic('up')}<b class="p">${N(sum(t,'i'))}</b><span>আজকের আয়</span></div><div class="k">${ic('dn')}<b class="q">${N(sum(t,'o'))}</b><span>আজকের ব্যয়</span></div></div>
-${D.w.length?'':`<div class="card em"><b>শুরু করুন</b><p class="m">প্রথমে কর্মী যোগ করুন, তারপর হাজিরা, আয়-ব্যয় ও মজুদ লিখুন।</p><button class="btn" data-a="go" data-i="w">+ প্রথম কর্মী যোগ করুন</button></div>`}<div class="card"><h3>এই মাসের সারসংক্ষেপ</h3><div class="row"><span>বেতন (আনুমানিক)</span><b>${N(pm)}</b></div><div class="row"><span>কম মজুদ</span><b class="${low.length?'q':''}">${H(low.length)} টি</b></div></div>${rec()}`},
+h(){const d=Z();ens(d);return D.w.length?D.w.map((w,k)=>wcard(w,d,k)).join(''):`<div class=\"card em\"><b>কোনো কর্মী নেই</b><p class=\"m\">হাজিরা কার্ড দেখতে আগে কর্মী যোগ করুন।</p><button class=\"btn\" data-a=\"go\" data-i=\"w\">+ কর্মী যোগ করুন</button></div>`},
 w(){const e=D.w.find(x=>x.id==ED)||{};return `<div class="card"><h3>${ED?'কর্মী সম্পাদনা':'নতুন কর্মী'}</h3><input id="wn" placeholder="নাম" value="${E(e.n)}"><input id="wp" type="tel" placeholder="ফোন নম্বর" value="${E(e.p)}"><input id="wa" placeholder="ঠিকানা" value="${E(e.a)}"><div class="r"><input id="wd" placeholder="পদবী" value="${E(e.d)}"><input id="ws" type="number" placeholder="মাসিক বেতন" value="${e.s||''}"></div><button class="btn" data-a="sw">${ED?'হালনাগাদ':'যুক্ত করুন'}</button> ${ED?'<button class="btn x" data-a="cw">বাতিল</button>':''}</div>`+
 D.w.map(w=>`<div class="card"><div class="wk"><div class="av">${E(w.n).slice(0,1)}</div><div class="wi"><b>${E(w.n)}</b> <span class="m">${E(w.d)}</span><div class="m">${E(w.p)} · ${E(w.a)}</div></div><b>${N(w.s)}</b></div><div class="r" style="margin-top:10px"><button class="btn s x" data-a="ew" data-i="${w.id}">সম্পাদনা</button><button class="btn s x" data-a="dw" data-i="${w.id}">মুছুন</button></div></div>`).join('')||'<p class="m">কোনো কর্মী নেই। উপরে প্রথম কর্মী যুক্ত করুন।</p>'},
 a(){const a=D.a[DT]||{};let t=`*${D.s.n}* হাজিরা ${DT}\n`;const rows=D.w.map(w=>{const r=a[w.id]||{},q=day(r);t+=`${w.n}: ${r.x?'অনুপস্থিত':(r.i||'-')+'–'+(r.o||'-')+' OT '+H(q.ot)+'ঘ'}\n`;
@@ -131,9 +150,9 @@ return `<div class="card"><div class="r"><input type="month" id="mo" value="${MO
 g(){const s=D.s;return `<div class="card"><h3>সেটিংস</h3><input id="sn" value="${E(s.n)}" placeholder="প্রতিষ্ঠানের নাম"><div class="r"><input id="si1" type="time" value="${s.i}"><input id="so" type="time" value="${s.o}"></div><div class="r"><input id="sd" type="number" value="${s.d}" placeholder="মাসের কর্মদিবস"><input id="sx" type="number" step=".1" value="${s.x}" placeholder="OT গুণক"></div><input id="sc" value="${E(s.cc)}" placeholder="দেশের কোড (88)"><p class="m">OT = ডিউটি শেষের পর কাজের সময়। রেট = দৈনিক বেতন ÷ ডিউটি ঘণ্টা × গুণক।</p><button class="btn" data-a="ss">সংরক্ষণ</button></div><div class="card"><h3>ব্যাকআপ</h3><p class="m">ডেটা এই ব্রাউজারে থাকে। নিয়মিত নিচের লেখা কপি করে রাখুন; ফেরাতে পেস্ট করে চাপুন।</p><textarea id="bk" style="width:100%;height:90px;background:var(--bg);color:var(--t);border:1px solid var(--l);border-radius:12px">${JSON.stringify(D).replace(/</g,'\\u003c')}</textarea><button class="btn x" data-a="rs">রিস্টোর</button></div>`}};
 const IC={"home": "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z", "users": "M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.2a3.5 3.5 0 0 1 0 6.6", "clock": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2", "wallet": "M3 7a2 2 0 0 1 2-2h13v4M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2zM16 14h2", "box": "M21 8l-9-5-9 5v8l9 5 9-5zM3.3 7.5L12 12.5l8.7-5M12 12.5V21", "file": "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6", "set": "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4", "up": "M7 17L17 7M8 7h9v9", "dn": "M17 7L7 17M16 17H7V8"},ic=n=>`<svg viewBox="0 0 24 24"><path d="${IC[n]}"/></svg>`,
 TB=[['h','home','হোম'],['w','users','কর্মী'],['a','clock','হাজিরা'],['f','wallet','হিসাব'],['s','box','মজুদ'],['m','file','মাসিক']],
-TT={h:'ড্যাশবোর্ড',w:'কর্মী',a:'হাজিরা',f:'আয়-ব্যয়',s:'মজুদ',m:'মাসিক শিট',g:'সেটিংস'};
+TT={h:'আজকের হাজিরা',w:'কর্মী',a:'হাজিরা',f:'আয়-ব্যয়',s:'মজুদ',m:'মাসিক শিট',g:'সেটিংস'};
 const NB=[['a','clock','হাজিরা'],['h','home','হোম'],['f','wallet','হিসাব']];
-function R(){$('#co').textContent=D.s.n;$('#sl').textContent='Knitwear · Business Suite';$('#tt').textContent=TT[T];$('#dd').textContent=new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long'});$('#v').innerHTML=V[T]();$('#nv').innerHTML=NB.map(b=>`<button class="${b[0]==T?'on':''}" data-a="go" data-i="${b[0]}"><span class="pb">${ic(b[1])}</span><span class="lb">${b[2]}</span></button>`).join('')}
+function R(){$('#co').textContent=D.s.n;$('#sl').textContent='Knitwear · Business Suite';$('#tt').textContent=TT[T];$('#v').innerHTML=V[T]();dd();$('#nv').innerHTML=NB.map(b=>`<button class="${b[0]==T?'on':''}" data-a="go" data-i="${b[0]}"><span class="pb">${ic(b[1])}</span><span class="lb">${b[2]}</span></button>`).join('')}
 const REPO='alamgirabdullahgh/noorfashionknitwear',VER=(document.querySelector('meta[name=app-version]')||{}).content||'';
 const UP=(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.NoorUpdater)||null;
 let UPD=null,CUR=+((document.querySelector('meta[name=app-build]')||{}).content)||0,CAN=true,BUSY=false,PEND=null,LAST=0;
@@ -155,6 +174,7 @@ const A={cloud:()=>{closeM();if(window.NFC)NFC.open();else toast('একটু �
 sw:()=>{const o={n:$('#wn').value.trim(),p:$('#wp').value,a:$('#wa').value,d:$('#wd').value,s:+$('#ws').value||0};if(!o.n)return;if(ED)Object.assign(D.w.find(x=>x.id==ED),o);else D.w.push({id:id(),...o});ED=null;S();R()},
 ew:b=>{ED=b.dataset.i;R();scrollTo(0,0)},cw:()=>{ED=null;R()},
 dw:b=>{if(AR!=b.dataset.i){AR=b.dataset.i;b.textContent='নিশ্চিত?';return}D.w=D.w.filter(x=>x.id!=AR);AR=null;S();R()},
+pt:b=>{const d=b.dataset.d,a=D.a[d]=D.a[d]||{},r=a[b.dataset.i]=a[b.dataset.i]||{};r.x=!r.x;if(!r.x){r.i=r.i||D.s.i;r.o=r.o||D.s.o}S();upc(b.dataset.i,d)},
 ab:b=>{const a=D.a[DT]=D.a[DT]||{},r=a[b.dataset.i]=a[b.dataset.i]||{};r.x=!r.x;S();R()},
 fill:()=>{const a=D.a[DT]=D.a[DT]||{};D.w.forEach(w=>a[w.id]={i:D.s.i,o:D.s.o});S();R()},
 sf:()=>{const a=+$('#fa').value;if(!a)return;D.t.push({id:id(),d:DT,t:$('#ft').value,a,c:$('#fc').value||'অন্যান্য',n:$('#fn').value});S();R()},
@@ -165,7 +185,7 @@ di:b=>{D.i=D.i.filter(x=>x.id!=b.dataset.i);S();R()},
 ss:()=>{Object.assign(D.s,{n:$('#sn').value||'Noor Fashion',i:$('#si1').value,o:$('#so').value,d:+$('#sd').value||26,x:+$('#sx').value||2,cc:$('#sc').value||'88'});S();R()},
 pr:()=>print(),rs:()=>{try{D=JSON.parse($('#bk').value);S();R()}catch(e){$('#bk').style.borderColor='red'}}};
 document.addEventListener('click',e=>{const w=e.target.closest('.wa');if(w){const p=w.dataset.p||(w.parentNode.querySelector('[data-ph]')||{}).value;w.href='https://wa.me/'+ph(p)+'?text='+w.dataset.t;return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a](b)});
-document.addEventListener('change',e=>{const t=e.target;if(t.dataset.c){const a=D.a[DT]=D.a[DT]||{},r=a[t.dataset.w]=a[t.dataset.w]||{};r[t.dataset.c]=t.value;S();R()}
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset.c){const d=t.dataset.d||DT,a=D.a[d]=D.a[d]||{},r=a[t.dataset.w]=a[t.dataset.w]||{};r[t.dataset.c]=t.value;S();t.dataset.d?upc(t.dataset.w,d):R()}
 else if(t.id=='dt'){DT=t.value||Z();R()}else if(t.id=='mo'){MO=t.value||MO;R()}else if(t.dataset.ph!==undefined){D.s.ph=t.value;S()}});
 R();
 $('#mb').onclick=()=>document.body.classList.contains('mo')?closeM():openM();$('#sc2').onclick=()=>closeM();addEventListener('popstate',()=>closeM(1));menu();
