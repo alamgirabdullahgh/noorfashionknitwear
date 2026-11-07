@@ -23,6 +23,19 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == uid && firstAdminClaim(uid);
     }
 
+    // Phone -> email index so people can sign in with their phone number.
+    // Single-doc lookup is public (needed before sign-in); listing is not allowed.
+    match /phoneLogins/{phone} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.email == request.auth.token.email;
+      allow update: if signedIn() && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.email == request.auth.token.email;
+      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
     // One profile per account: pending until an admin approves it
     match /members/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
