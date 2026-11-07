@@ -1,8 +1,8 @@
 /* Noor Fashion: shared organisation data with email accounts + admin approval (Firebase Auth + Firestore).
    Bundled by the build workflow into www/cloud.js */
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { initializeFirestore, doc, collection, getDoc, setDoc, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateEmail, verifyBeforeUpdateEmail, deleteUser } from 'firebase/auth';
+import { initializeFirestore, doc, collection, getDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
 
 const cfg = {
   apiKey: 'AIzaSyDJmVnJVChTZDV-OzOcGkLXvRG4kTu0ZJQ',
@@ -103,6 +103,7 @@ const orgRef = () => doc(db, 'org', 'main');
 let user = null, prof = null, isAdm = false, members = [], reg = null, mode = 'login';
 let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', district: '', area: '' };
 let unProf = null, unAdm = null, unMem = null, unOrg = null;
+let deleting = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
 const bn = n => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
@@ -175,7 +176,7 @@ async function resolveEmail(v) {
 function subscribe(u) {
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
     prof = s.exists() ? s.data() : null;
-    if (!s.exists()) ensureProfile(u).catch(e => { msg = errText(e); render(); });
+    if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { msg = errText(e); render(); });
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
@@ -184,7 +185,7 @@ function subscribe(u) {
       unMem = onSnapshot(collection(db, 'members'), q => {
         members = q.docs.map(d => ({ id: d.id, ...d.data() }));
         const n = members.filter(m => m.status === 'pending').length;
-        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → অ্যাকাউন্ট'); }
+        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
         render();
       }, () => {});
     }
@@ -305,9 +306,28 @@ const cssAx = `
 .ax .ax-menu span.dn{grid-column:1/-1;display:flex;justify-content:flex-end;background:var(--ain);color:var(--ap);font-weight:700}
 .nfl .cd .er{text-align:center}
 `;
+const cssPf = `
+.pf{background:var(--c,#fff);color:var(--t,#111);border-radius:18px;padding:18px;box-shadow:var(--sh,0 2px 6px rgba(0,0,0,.08));max-width:460px;margin:0 auto 16px;font-family:'NF','Noto Sans Bengali',sans-serif}
+.pf-h{margin:0 0 14px;padding-bottom:10px;border-bottom:2px solid var(--l,#e3e3e3);color:var(--pr,#111);font-size:19px}
+.pf-r{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 0 10px;margin:0 0 12px;border-bottom:1px solid var(--l,#e3e3e3)}
+.pf-r>div{min-width:0}
+.pf-l{font-size:11.5px;font-weight:700;color:var(--m,#6b6b6b);margin-bottom:2px}
+.pf-v{font-size:15px;font-weight:600;word-break:break-word}
+.pf-e{flex:none;color:var(--pr,#0f5132);font-size:12px;font-weight:700;text-decoration:underline;cursor:pointer;padding:6px 4px}
+.pf-s{margin:-2px 0 14px;padding:12px;border:1px solid var(--l,#e3e3e3);border-radius:14px;background:var(--bg,#f6f6f6)}
+.pf-sl{font-size:12px;font-weight:700;color:var(--pr,#111);margin:0 0 4px}
+.pf-i{display:block;width:100%;box-sizing:border-box;margin:0 0 8px;padding:12px 13px;border:1.5px solid var(--l,#ddd);border-radius:12px;background:var(--in,#fff);color:var(--t,#111);font:400 16px 'NF','Noto Sans Bengali',sans-serif}
+.pf-b{display:block;width:100%;margin:8px 0 0;padding:11px;border:0;border-radius:12px;color:#fff;font:700 14px 'NF','Noto Sans Bengali',sans-serif}
+.pf-up{background:var(--pr,#0f5132);color:var(--pt,#fff)}.pf-cn{background:var(--m,#6b6b6b)}.pf-dg{background:var(--no,#c8414f)}
+.pf-er{min-height:16px;color:var(--no,#c8414f);font-size:12.5px;margin:0 0 4px}
+.pf-w{color:var(--no,#c8414f);font-size:13px;font-weight:600;text-align:center;margin:0 0 8px}
+.pf-ft{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px}
+.pf-lk{color:var(--pr,#0f5132);font-size:13px;font-weight:700;cursor:pointer;padding:8px 2px}.pf-lk.dg{color:var(--no,#c8414f)}
+.pf-ft .pf-b{width:auto;margin:0;padding:9px 18px;background:var(--no,#c8414f);color:#fff}
+.pf-ap{margin-top:18px;padding-top:6px;border-top:2px solid var(--l,#e3e3e3)}`;
 function ensureCss() {
   if (document.getElementById('nfcss')) return;
-  const st = document.createElement('style'); st.id = 'nfcss'; st.textContent = css + cssAx; document.head.appendChild(st);
+  const st = document.createElement('style'); st.id = 'nfcss'; st.textContent = css + cssAx + cssPf; document.head.appendChild(st);
 }
 function setLock(on) { document.documentElement.classList.toggle('nflock', on); }
 
@@ -459,34 +479,132 @@ function lockRender() {
   }
 }
 
-function modalRender() {
-  if (!modal) return;
-  const cd = modal.querySelector('.cd');
-  if (state() !== 'ok') { modal.remove(); modal = null; return; }
+/* ---------- Profile page (Rah Care style) ---------- */
+const PF = [['org', 'Organization Name'], ['orgType', 'Organization Type'], ['mgmt', 'Management Type'], ['branch', 'Branch Name'], ['phone', 'Branch Phone'], ['address', 'Branch Address']];
+let pf = { sec: '', field: '', err: '' };
+const pfEl = () => document.getElementById('nfp');
+const tst = t => { try { if (typeof toast === 'function') toast(t); } catch (e) { /* ignore */ } };
+const pfErr = t => { pf.err = t; const e = document.getElementById('pfe'); if (e) e.textContent = t; };
+const pfReset = () => { pf = { sec: '', field: '', err: '' }; profRender(true); };
+const reauth = pw => reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, pw));
+async function movePhone(oldP, newP) {
+  try {
+    await setDoc(doc(db, 'phoneLogins', normPhone(newP)), { uid: user.uid, email: user.email, at: Date.now() });
+    if (oldP && normPhone(oldP) !== normPhone(newP)) await deleteDoc(doc(db, 'phoneLogins', normPhone(oldP)));
+  } catch (e) { /* rules may not be published yet: ignore */ }
+}
+function editBox(f, l, raw) {
+  const inp = f === 'mgmt'
+    ? `<select class="pf-i" id="pfin">${Object.keys(MGMT).map(k => `<option value="${esc(MGMT[k])}"${MGMT[k] === raw ? ' selected' : ''}>${MGMT[k]}</option>`).join('')}</select>`
+    : f === 'orgType'
+      ? `<input class="pf-i" id="pfin" list="pfdl" value="${esc(raw)}" placeholder="Pick or type your own"><datalist id="pfdl">${OTYPES.map(o => `<option value="${esc(o)}">`).join('')}</datalist>`
+      : `<input class="pf-i" id="pfin" type="${f === 'phone' ? 'tel' : 'text'}" value="${esc(raw)}">`;
+  return `<div class="pf-s"><div class="pf-sl">${l}</div>${inp}<div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="save">Save</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
+}
+function emailBox() {
+  return `<div class="pf-s"><div class="pf-sl">New Email</div><input class="pf-i" id="pfem" type="email" autocomplete="email"><div class="pf-sl">Current Password</div><input class="pf-i" id="pfpw" type="password" autocomplete="current-password"><div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="saveemail">Save</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
+}
+function passBox() {
+  return `<div class="pf-s"><div class="pf-sl">Current Password</div><input class="pf-i" id="pfcp" type="password" autocomplete="current-password"><div class="pf-sl">New Password</div><input class="pf-i" id="pfnp" type="password" placeholder="Min 8 characters" autocomplete="new-password"><div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="savepass">Confirm Change</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
+}
+function delBox() {
+  if (isAdm) return `<div class="pf-s"><div class="pf-w">অ্যাডমিন অ্যাকাউন্ট মুছে ফেলা যাবে না — এতে প্রতিষ্ঠানের ডেটা অ্যাডমিনহীন হয়ে যাবে।</div><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
+  return `<div class="pf-s"><div class="pf-w">Warning: Your account will be deleted permanently. Shared organisation data stays with the organisation.</div><input class="pf-i" id="pfdp" type="password" placeholder="Password" autocomplete="current-password"><div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-dg" data-act="delete">Yes, Delete</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
+}
+function approvalHTML() {
+  if (!isAdm) return '';
   const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const row = m => `<div class="mr"><div><b>${esc(m.name || m.email)}${m.title ? ' — ' + esc(m.title) : ''}</b>${esc(m.email)}${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
     ${m.id === user.uid ? '' : (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '')}</div>`;
-  cd.innerHTML = `<h3>👤 আমার অ্যাকাউন্ট</h3><p>${prof && prof.name ? esc(prof.name) + (prof.title ? ' — ' + esc(prof.title) : '') + '<br>' : ''}${esc(user.email)}${isAdm ? ' · <b>অ্যাডমিন</b>' : ''}${syncMsg ? '<br>' + esc(syncMsg) : ''}</p>
-    <button id="nfo">লগআউট</button><button id="nfx">বন্ধ</button>
-    ${isAdm ? `<h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('') || ''}` : ''}`;
-  cd.querySelector('#nfo').onclick = () => { close(); signOut(auth); };
-  cd.querySelector('#nfx').onclick = close;
-  cd.querySelectorAll('[data-ap]').forEach(b => b.onclick = () => decide(b.dataset.ap, 'approved'));
-  cd.querySelectorAll('[data-rj]').forEach(b => b.onclick = () => decide(b.dataset.rj, 'rejected'));
+  return `<div class="cd pf-ap"><h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('')}</div>`;
+}
+function profRender(force) {
+  const el = pfEl(); if (!el || !user) return;
+  ensureCss();
+  if (!prof) { el.innerHTML = '<div class="pf"><h3 class="pf-h">Profile</h3><div class="pf-v">লোড হচ্ছে…</div></div>'; return; }
+  if (!force && pf.sec && el.firstChild && el.querySelector('.pf-s')) return;
+  const rowOf = (f, l, val, key) => `<div class="pf-r"><div><div class="pf-l">${l}</div><div class="pf-v">${esc(val) || 'N/A'}</div></div><span class="pf-e" data-ed="${key}">Edit</span></div>`;
+  const rows = PF.map(([f, l]) => rowOf(f, l, prof[f], f) + (pf.sec === 'f' && pf.field === f ? editBox(f, l, prof[f] || '') : '')).join('')
+    + rowOf('email', 'Email', prof.email || user.email, '__email') + (pf.sec === 'e' ? emailBox() : '');
+  el.innerHTML = `<div class="pf"><h3 class="pf-h">Profile${isAdm ? ' · Admin' : ''}</h3>${rows}
+    <div class="pf-ft"><span class="pf-lk" data-act="openpass">Change Password</span><button class="pf-b" data-act="logout">Logout</button><span class="pf-lk dg" data-act="opendel">Delete Account</span></div>
+    ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>${approvalHTML()}`;
+  const sec = el.querySelector('.pf-s'); if (sec) { try { sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* ignore */ } const i = sec.querySelector('input,select'); if (i) i.focus(); }
+  el.onclick = onProfClick;
+}
+async function onProfClick(e) {
+  const t = e.target.closest('[data-ed],[data-act],[data-ap],[data-rj]'); if (!t) return;
+  const el = pfEl(), g = id => el.querySelector('#' + id);
+  const d = t.dataset;
+  if (d.ap) return decide(d.ap, 'approved');
+  if (d.rj) return decide(d.rj, 'rejected');
+  if (d.ed) { pf = { sec: d.ed === '__email' ? 'e' : 'f', field: d.ed, err: '' }; return profRender(true); }
+  const a = d.act;
+  if (a === 'cancel') return pfReset();
+  if (a === 'openpass') { pf = { sec: 'p', field: '', err: '' }; return profRender(true); }
+  if (a === 'opendel') { pf = { sec: 'd', field: '', err: '' }; return profRender(true); }
+  if (a === 'logout') return signOut(auth);
+  if (a === 'save') {
+    const f = pf.field, v = (g('pfin').value || '').trim();
+    if (!v) return pfErr('This field cannot be empty!');
+    if (f === 'phone' && v.replace(/\D/g, '').length < 7) return pfErr('সঠিক Branch Phone দিন');
+    const upd = f === 'org' ? { org: v, name: v } : f === 'orgType' ? { orgType: v, title: v } : { [f]: v };
+    pfErr('অপেক্ষা করুন…');
+    try {
+      await updateDoc(doc(db, 'members', user.uid), upd);
+      if (f === 'phone') await movePhone(prof.phone, v);
+      pfReset(); tst('Updated successfully!');
+    } catch (x) { pfErr(errText(x)); }
+    return;
+  }
+  if (a === 'saveemail') {
+    const em = (g('pfem').value || '').trim(), pw = g('pfpw').value;
+    if (!em || !pw) return pfErr('Please enter both new email and current password.');
+    pfErr('অপেক্ষা করুন…');
+    try {
+      await reauth(pw);
+      try { await updateEmail(user, em); }
+      catch (x) {
+        if (/operation-not-allowed/.test((x && x.code) || '')) { await verifyBeforeUpdateEmail(user, em); pfReset(); tst('নতুন ইমেইলে ভেরিফিকেশন লিংক পাঠানো হয়েছে — লিংকে চাপ দিলে ইমেইল বদলাবে'); return; }
+        throw x;
+      }
+      await user.getIdToken(true);
+      await updateDoc(doc(db, 'members', user.uid), { email: em });
+      if (prof && prof.phone) await movePhone(prof.phone, prof.phone);
+      pfReset(); tst('Email changed successfully!');
+    } catch (x) { pfErr(/requires-recent-login/.test((x && x.code) || '') ? 'নিরাপত্তার জন্য আবার লগইন করে চেষ্টা করুন' : errText(x)); }
+    return;
+  }
+  if (a === 'savepass') {
+    const cp = g('pfcp').value, np = g('pfnp').value;
+    if (!cp || !np) return pfErr('Please enter both passwords');
+    if (np.length < 8) return pfErr('নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে');
+    pfErr('অপেক্ষা করুন…');
+    try { await reauth(cp); await updatePassword(user, np); pfReset(); tst('Password changed successfully!'); }
+    catch (x) { pfErr(errText(x)); }
+    return;
+  }
+  if (a === 'delete') {
+    if (isAdm) return;
+    const pw = g('pfdp').value;
+    if (!pw) return pfErr('Please enter password!');
+    pfErr('অপেক্ষা করুন…');
+    try {
+      await reauth(pw);
+      deleting = true;
+      const ph = prof && prof.phone;
+      if (ph) { try { await deleteDoc(doc(db, 'phoneLogins', normPhone(ph))); } catch (x) { /* ignore */ } }
+      await deleteDoc(doc(db, 'members', user.uid));
+      await deleteUser(user);
+      LS.removeItem('nf_ok'); deleting = false;
+    } catch (x) { deleting = false; pfErr(errText(x)); }
+  }
 }
 async function decide(id, status) {
   try { await updateDoc(doc(db, 'members', id), { status, decidedAt: Date.now(), decidedBy: user.email }); }
   catch (e) { syncMsg = errText(e); render(); }
 }
-function render() { lockRender(); modalRender(); }
-function open() {
-  if (modal || state() !== 'ok') return;
-  ensureCss();
-  modal = document.createElement('div'); modal.className = 'nfc'; modal.innerHTML = '<div class="cd"></div>';
-  modal.addEventListener('click', e => { if (e.target === modal) close(); });
-  document.body.appendChild(modal); render();
-}
-function close() { if (modal) { modal.remove(); modal = null; } }
+function render() { lockRender(); profRender(false); }
 
 onAuthStateChanged(auth, u => {
   unsubscribeAll(); user = u; msg = ''; syncMsg = '';
@@ -494,5 +612,5 @@ onAuthStateChanged(auth, u => {
   render();
 });
 window.addEventListener('online', () => { if (state() === 'ok' && LS.getItem('nf_dirty') === '1') schedule(); });
-window.NFC = { open, dirty() { LS.setItem('nf_dirty', '1'); if (state() === 'ok') schedule(); } };
+window.NFC = { prof() { pf = { sec: '', field: '', err: '' }; profRender(true); }, dirty() { LS.setItem('nf_dirty', '1'); if (state() === 'ok') schedule(); } };
 render();
