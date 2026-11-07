@@ -148,7 +148,7 @@ mn=t=>{const p=(t||'0:0').split(':');return p[0]*60+ +p[1]},ph=v=>{v=(v||'').rep
 sh=()=>Math.max(1,(mn(D.s.o)-mn(D.s.i))/60);
 function day(r){if(!r||r.x)return{p:0,ot:0,w:0};if(!r.i||!r.o)return{p:0,ot:0,w:0};const w=Math.max(0,mn(r.o)-mn(r.i));return{p:1,w:w/60,ot:Math.max(0,mn(r.o)-mn(D.s.o))/60}}
 function pay(w,ym){let p=0,ab=0,ot=0;for(const d in D.a)if(d.startsWith(ym)){const r=D.a[d][w.id];if(!r)continue;if(r.x)ab++;else{const q=day(r);p+=q.p;ot+=q.ot}}
-const dl=w.s/D.s.d,o=ot*dl/sh()*D.s.x,de=ab*dl;return{p,ab,ot,o,de,tot:Math.round(w.s-de+o)}}
+const sl=+w.s||0,dl=sl/(D.s.d||26),o=ot*dl/sh()*D.s.x,pd=Math.min(sl,p*dl),de=sl-pd;return{p,ab,ot,o,de,pd,tot:Math.round(pd+o)}}
 function send(t,p){return `<div class="sb"><input type="tel" data-ph placeholder="WhatsApp নম্বর (01XXXXXXXXX)" value="${p||D.s.ph||''}"><a class="btn wa" target="_blank" rel="noopener" data-t="${encodeURIComponent(t)}" href="#">পাঠান</a></div>`}
 const tx=d=>D.t.filter(x=>x.d==d),sum=(a,t)=>a.filter(x=>x.t==t).reduce((s,x)=>s+x.a,0);
 function rec(){const l=D.t.slice().sort((a,b)=>b.d.localeCompare(a.d)).slice(0,4);return l.length?`<div class="card"><h3>সাম্প্রতিক লেনদেন</h3>${l.map(x=>`<div class="row"><span class="wk"><span class="av" style="width:38px;height:38px;font-size:15px">${E(x.c||'?').slice(0,1)}</span><span><b>${E(x.c)}</b><br><span class="m">${x.d}</span></span></span><b class="${x.t=='i'?'p':'q'}">${x.t=='i'?'+':'−'}${N(x.a)}</b></div>`).join('')}</div>`:''}
@@ -180,9 +180,9 @@ D.i.map(x=>`<div class="card"><div class="row" style="border:0"><b>${E(x.n)}</b>
 m(){if(!D.w.length)return `<div class="card em"><b>কোনো কর্মী নেই</b><p class="m">মাসিক শিট দেখতে আগে কর্মী যোগ করুন।</p><button class="btn" data-a="go" data-i="w">+ কর্মী যোগ করুন</button></div>`;
 const ym=MO,[Y,Mo]=ym.split('-').map(Number),nd=new Date(Y,Mo,0).getDate(),days=[...Array(nd)].map((_,i)=>i+1),dk=d=>ym+'-'+p2(d);
 let t=`*${D.s.n}* মাসিক শিট ${ym}\n`,gt=0,go=0,gh=0,gs=0,gd=0,gp=0,ga=0,gn=0;const cnt=days.map(()=>0);
-const rows=D.w.map((w,k)=>{const q=pay(w,ym);gt+=q.tot;go+=q.o;gh+=q.ot;gs+=+w.s||0;gd+=q.de;gp+=q.p;ga+=q.ab;gn+=(+w.s||0)-q.de;t+=`${w.n}: উপস্থিত ${H(q.p)}, অনুপস্থিত ${H(q.ab)}, OT ${H(q.ot)}ঘ, মোট ${N(q.tot)}\n`;
+const rows=D.w.map((w,k)=>{const q=pay(w,ym);gt+=q.tot;go+=q.o;gh+=q.ot;gs+=+w.s||0;gd+=q.de;gp+=q.p;ga+=q.ab;gn+=q.pd;t+=`${w.n}: উপস্থিত ${H(q.p)}, অনুপস্থিত ${H(q.ab)}, OT ${H(q.ot)}ঘ, মোট ${N(q.tot)}\n`;
 const cells=days.map((d,i)=>{const r=(D.a[dk(d)]||{})[w.id];if(!r||(!r.x&&!(r.i&&r.o)))return '<td><span class="m">·</span></td>';if(r.x)return '<td><b class="q">অ</b></td>';const o=day(r).ot;cnt[i]++;return `<td><b class="p">✓</b>${o>0?`<small>${H(o)}ঘ</small>`:''}</td>`}).join('');
-return `<tr><td class="s1">${BD(k+1)}</td><td class="s2">${E(w.n)}<small>উ ${H(q.p)} · অ ${H(q.ab)}</small></td>${cells}<td class="rt p">${H(q.p)}</td><td class="rt q">${H(q.ab)}</td><td class="rt">${N(w.s)}</td><td class="rt">${N((+w.s||0)-q.de)}</td><td class="rt">${H(q.ot)}ঘ</td><td class="rt">${N(q.o)}</td><td class="rt">${N(q.tot)}</td></tr>`}).join('');
+return `<tr><td class="s1">${BD(k+1)}</td><td class="s2">${E(w.n)}<small>উ ${H(q.p)} · অ ${H(q.ab)}</small></td>${cells}<td class="rt p">${H(q.p)}</td><td class="rt q">${H(q.ab)}</td><td class="rt">${N(w.s)}</td><td class="rt">${N(q.pd)}</td><td class="rt">${H(q.ot)}ঘ</td><td class="rt">${N(q.o)}</td><td class="rt">${N(q.tot)}</td></tr>`}).join('');
 t+=`সর্বমোট: ${N(gt)}`;
 const head=days.map(d=>{const wd=new Date(Y,Mo-1,d).getDay();return `<th data-gd="${dk(d)}" class="${wd==5?'fr':''}${dk(d)==Z()?' td':''}">${BD(d)}</th>`}).join('');
 const foot=cnt.map(c=>`<td>${c?H(c):''}</td>`).join('');
