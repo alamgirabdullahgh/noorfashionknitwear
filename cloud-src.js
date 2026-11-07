@@ -103,7 +103,7 @@ const orgRef = () => doc(db, 'org', 'main');
 let user = null, prof = null, isAdm = false, members = [], reg = null, mode = 'login';
 let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', district: '', area: '' };
 let unProf = null, unAdm = null, unMem = null, unOrg = null;
-let deleting = false;
+let deleting = false, authReady = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
 const bn = n => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
@@ -146,8 +146,8 @@ async function ensureProfile(u) {
   const snap = await getDoc(mref);
   if (snap.exists()) return;
   const r = reg || {};
-  const name = r.org || (u.email || '').split('@')[0], title = r.type || '';
-  const extra = r.org ? { org: r.org, orgType: r.type || '', mgmt: r.mgmt || '', phone: r.phone || '', division: r.division || '', district: r.district || '', area: r.area || '', branch: r.branch || '', address: r.address || '' } : {};
+  const name = r.name || (u.email || '').split('@')[0], title = r.title || '';
+  const extra = r.phone ? { phone: r.phone } : {};
   let booted = true;
   try { booted = (await getDoc(doc(db, 'config', 'bootstrap'))).exists(); } catch (e) { booted = true; }
   if (!booted) {
@@ -392,62 +392,34 @@ function renderAuth(cd) {
     };
     return;
   }
-  const otLabel = fv.otype || '';
-  const otField = fv.otEdit
-    ? `<input id="otIn" type="text" placeholder="Enter Organization Type" value="${esc(otLabel)}">`
-    : `<span id="otVal">${esc(otLabel || 'Enter Organization Type')}</span>`;
   cd.innerHTML = `<div class="ax"><h2 class="ax-t jn">🌿 Join Now!</h2>
-    <div class="ax-f"><label class="ax-l">Organization Name</label><input class="ax-i" id="fname" placeholder="Enter organization name" autocomplete="organization"></div>
-    <div class="ax-f"><label class="ax-l">Organization Type</label>
-      <div class="ax-dd"><div class="ax-sel ot${otLabel ? ' on' : ''}" id="otBtn">${otField}<div class="ax-mg" id="mgBtn">${esc(MGMT[fv.mgmt] || 'Patient Management')}</div></div>
-        <div class="ax-menu grid" id="otMenu">${OTYPES.map(o => `<span data-v="${esc(o)}" class="${o === otLabel ? 'ck' : ''}">${esc(o)}</span>`).join('')}<span data-v="__other">✎ Other…</span></div>
-        <div class="ax-menu mg" id="mgMenu">${Object.keys(MGMT).map(k => `<span data-k="${k}" class="${k === fv.mgmt ? 'ck' : ''}">${MGMT[k]}</span>`).join('')}</div></div></div>
-    <div class="ax-f"><label class="ax-l">Branch Phone</label><input class="ax-i" id="phone" type="tel" minlength="7" maxlength="15" placeholder="Enter your phone number" autocomplete="tel"></div>
+    <div class="ax-f"><label class="ax-l">Name</label><input class="ax-i" id="fname" placeholder="Enter your name" autocomplete="name"></div>
+    <div class="ax-f"><label class="ax-l">Designation</label><input class="ax-i" id="desig" placeholder="Enter your designation" autocomplete="organization-title"></div>
+    <div class="ax-f"><label class="ax-l">Phone</label><input class="ax-i" id="phone" type="tel" minlength="7" maxlength="15" placeholder="Enter your phone number" autocomplete="tel"></div>
     <div class="ax-f"><label class="ax-l">Email</label><input class="ax-i" id="email" type="email" placeholder="Email address" autocomplete="email"></div>
     <div class="ax-f"><label class="ax-l">Password</label><div class="ax-pw" style="position:relative"><input class="ax-i" id="spass" type="password" minlength="8" placeholder="Min 8 characters" autocomplete="new-password"><span class="ax-eye" id="eye2">👁</span></div></div>
-    <div class="ax-f"><label class="ax-l">Branch District</label><div class="ax-dd"><div class="ax-sel${addrLabel() ? ' on' : ''}"><input id="adVal" type="text" readonly placeholder="Select District" value="${esc(addrLabel())}"></div><div class="ax-menu grid" id="adMenu"></div></div></div>
-    <div class="ax-f"><label class="ax-l">Exact Branch Address</label><input class="ax-i" id="bdate" placeholder="Enter your exact branch address" autocomplete="street-address"></div>
     ${er}<button class="ax-btn" id="nfgo">Register</button>
     <div class="ax-foot">Already have an account? <a id="nft1">Sign in</a></div></div>`;
-  ['fname', 'phone', 'email', 'spass', 'bdate'].forEach(k => { if (fv[k]) cd.querySelector('#' + k).value = fv[k]; });
+  ['fname', 'desig', 'phone', 'email', 'spass'].forEach(k => { if (fv[k]) cd.querySelector('#' + k).value = fv[k]; });
   cd.querySelector('#eye2').onclick = e => eye('spass', e.currentTarget);
   cd.querySelector('#nft1').onclick = () => { mode = 'login'; msg = ''; render(); };
-  // organization type: pick from menu, or type your own (✎ Other… / double-tap)
-  const otBtn = cd.querySelector('#otBtn');
-  otBtn.onclick = e => {
-    if (e.target.closest('#mgBtn') || e.target.id === 'otIn') return;
-    toggleMenu(cd, 'otMenu');
-  };
-  const startEdit = () => { fv.otEdit = true; lockKey = ''; render(); const i = lockEl && lockEl.querySelector('#otIn'); if (i) i.focus(); };
-  otBtn.ondblclick = e => { if (!e.target.closest('#mgBtn')) startEdit(); };
-  cd.querySelectorAll('#otMenu span').forEach(sp => sp.onclick = e => {
-    e.stopPropagation(); const v = sp.dataset.v;
-    if (v === '__other') { fv.otype = ''; closeMenus(cd); startEdit(); return; }
-    fv.otype = v; fv.otEdit = false; lockKey = ''; render();
-  });
-  const oi = cd.querySelector('#otIn');
-  if (oi) { oi.oninput = () => { fv.otype = oi.value; }; oi.onblur = () => { fv.otype = oi.value.trim(); fv.otEdit = false; lockKey = ''; render(); }; oi.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); oi.blur(); } }; setTimeout(() => oi.focus(), 30); }
-  cd.querySelector('#mgBtn').onclick = e => { e.stopPropagation(); toggleMenu(cd, 'mgMenu'); };
-  cd.querySelectorAll('#mgMenu span').forEach(sp => sp.onclick = e => { e.stopPropagation(); fv.mgmt = sp.dataset.k; lockKey = ''; render(); });
-  wireAddress(cd);
   const go = cd.querySelector('#nfgo');
   go.onclick = async () => {
-    const org = (fv.fname || '').trim(), type = (fv.otype || '').trim(), phone = (fv.phone || '').trim(), email = (fv.email || '').trim(), pass = fv.spass || '', adr = (fv.bdate || '').trim();
-    if (!org) return err('Organization Name লিখুন');
-    if (!type) return err('Organization Type লিখুন বা সিলেক্ট করুন!');
-    if (phone.replace(/\D/g, '').length < 7) return err('সঠিক Branch Phone দিন');
+    const name = (fv.fname || '').trim(), title = (fv.desig || '').trim(), phone = (fv.phone || '').trim(), email = (fv.email || '').trim(), pass = fv.spass || '';
+    if (!name) return err('Name লিখুন');
+    if (!title) return err('Designation লিখুন');
+    if (phone.replace(/\D/g, '').length < 7) return err('সঠিক Phone নম্বর দিন');
     if (!email) return err('Email দিন');
     if (pass.length < 8) return err('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে');
-    if (!fv.district) return err('Branch district সিলেক্ট করুন!');
-    if (!adr) return err('Exact Branch Address লিখুন');
     err('অপেক্ষা করুন…'); go.disabled = true;
-    reg = { org, type, mgmt: MGMT[fv.mgmt] || '', phone, division: fv.division, district: fv.district, area: fv.area, branch: fv.district + ' Branch', address: adr };
+    reg = { name, title, phone };
     try { await createUserWithEmailAndPassword(auth, email, pass); msg = ''; }
     catch (x) { reg = null; go.disabled = false; err(errText(x)); }
   };
 }
 
 function lockRender() {
+  if (!authReady) { setLock(!LS.getItem('nf_ok')); return; }
   const st = state();
   const optimistic = user && LS.getItem('nf_ok') === user.uid && st === 'loading';
   if (st === 'ok' || optimistic) {
@@ -456,7 +428,9 @@ function lockRender() {
     setLock(false); return;
   }
   if (!user || st === 'rejected') LS.removeItem('nf_ok');
-  setLock(true); ensureCss();
+  setLock(true);
+  if (st === 'loading') { if (lockEl) { lockEl.remove(); lockEl = null; lockKey = ''; } return; }
+  ensureCss();
   const key = st + '|' + mode + '|' + msg + '|' + (user ? user.uid : '');
   if (lockEl && key === lockKey) return;
   lockKey = key;
@@ -480,7 +454,7 @@ function lockRender() {
 }
 
 /* ---------- Profile page (Rah Care style) ---------- */
-const PF = [['org', 'Organization Name'], ['orgType', 'Organization Type'], ['mgmt', 'Management Type'], ['branch', 'Branch Name'], ['phone', 'Branch Phone'], ['address', 'Branch Address']];
+const PF = [['name', 'Name'], ['title', 'Designation'], ['phone', 'Phone']];
 let pf = { sec: '', field: '', err: '' };
 const pfEl = () => document.getElementById('nfp');
 const tst = t => { try { if (typeof toast === 'function') toast(t); } catch (e) { /* ignore */ } };
@@ -494,11 +468,7 @@ async function movePhone(oldP, newP) {
   } catch (e) { /* rules may not be published yet: ignore */ }
 }
 function editBox(f, l, raw) {
-  const inp = f === 'mgmt'
-    ? `<select class="pf-i" id="pfin">${Object.keys(MGMT).map(k => `<option value="${esc(MGMT[k])}"${MGMT[k] === raw ? ' selected' : ''}>${MGMT[k]}</option>`).join('')}</select>`
-    : f === 'orgType'
-      ? `<input class="pf-i" id="pfin" list="pfdl" value="${esc(raw)}" placeholder="Pick or type your own"><datalist id="pfdl">${OTYPES.map(o => `<option value="${esc(o)}">`).join('')}</datalist>`
-      : `<input class="pf-i" id="pfin" type="${f === 'phone' ? 'tel' : 'text'}" value="${esc(raw)}">`;
+  const inp = `<input class="pf-i" id="pfin" type="${f === 'phone' ? 'tel' : 'text'}" value="${esc(raw)}">`;
   return `<div class="pf-s"><div class="pf-sl">${l}</div>${inp}<div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="save">Save</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
 }
 function emailBox() {
@@ -547,8 +517,8 @@ async function onProfClick(e) {
   if (a === 'save') {
     const f = pf.field, v = (g('pfin').value || '').trim();
     if (!v) return pfErr('This field cannot be empty!');
-    if (f === 'phone' && v.replace(/\D/g, '').length < 7) return pfErr('সঠিক Branch Phone দিন');
-    const upd = f === 'org' ? { org: v, name: v } : f === 'orgType' ? { orgType: v, title: v } : { [f]: v };
+    if (f === 'phone' && v.replace(/\D/g, '').length < 7) return pfErr('সঠিক Phone নম্বর দিন');
+    const upd = { [f]: v };
     pfErr('অপেক্ষা করুন…');
     try {
       await updateDoc(doc(db, 'members', user.uid), upd);
@@ -607,6 +577,7 @@ async function decide(id, status) {
 function render() { lockRender(); profRender(false); }
 
 onAuthStateChanged(auth, u => {
+  authReady = true;
   unsubscribeAll(); user = u; msg = ''; syncMsg = '';
   if (u) subscribe(u);
   render();
