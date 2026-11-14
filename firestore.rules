@@ -5,6 +5,10 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
     function isApproved() { return signedIn() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.status == 'approved'; }
+    // স্থায়ী অ্যাডমিন নম্বর: 01731141115, 01780972945 (ফোন থেকে বানানো লুকানো আইডি)
+    function isAdminPhone() {
+      return signedIn() && request.auth.token.email in ['p1731141115@noorfashion.example', 'p1780972945@noorfashion.example'];
+    }
     // The very first registered account claims the admin role (bootstrap doc + admin doc + member doc in one batch)
     function firstAdminClaim(uid) {
       return !exists(/databases/$(database)/documents/config/bootstrap)
@@ -20,7 +24,7 @@ service cloud.firestore {
 
     match /admins/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create: if signedIn() && request.auth.uid == uid && firstAdminClaim(uid);
+      allow create: if signedIn() && request.auth.uid == uid && (firstAdminClaim(uid) || isAdminPhone());
     }
 
     // Phone -> email index so people can sign in with their phone number.
@@ -42,8 +46,9 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == uid
                     && request.resource.data.email == request.auth.token.email
                     && (request.resource.data.status == 'pending'
-                        || (request.resource.data.status == 'approved' && firstAdminClaim(uid)));
-      allow update: if (isAdmin()
+                        || (request.resource.data.status == 'approved' && (firstAdminClaim(uid) || isAdminPhone())));
+      allow update: if (signedIn() && request.auth.uid == uid && isAdminPhone())
+                    || (isAdmin()
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt', 'decidedBy']))
                     || (signedIn() && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'title', 'org', 'orgType', 'mgmt', 'branch', 'phone', 'address', 'email']));

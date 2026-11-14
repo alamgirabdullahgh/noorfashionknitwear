@@ -146,9 +146,22 @@ async function savePhone(u) {
   // ফোন → ইমেইল সূচি (ফোন দিয়ে লগইনের জন্য)। Rules পাবলিশ না থাকলে চুপচাপ বাদ যায়, সাইন-আপ আটকায় না
   try { if (reg && reg.phone) await setDoc(doc(db, 'phoneLogins', normPhone(reg.phone)), { uid: u.uid, email: u.email, at: Date.now() }); } catch (e) { /* ignore */ }
 }
+/* স্থায়ী অ্যাডমিন নম্বর (firestore.rules-এর তালিকার সাথে মেলাতে হবে) */
+const ADMIN_PH = ['p1731141115' + PH_DOM, 'p1780972945' + PH_DOM];
+const isAdminPh = e => ADMIN_PH.includes(String(e || ''));
+async function makeAdmin(u, fresh) {
+  const r = reg || {}, at = Date.now(), b = writeBatch(db);
+  const base = { email: u.email, status: 'approved', role: 'admin' };
+  const info = fresh ? { name: r.name || 'Admin', title: r.title || 'Admin', ...(r.phone ? { phone: r.phone } : {}), at } : {};
+  b.set(doc(db, 'admins', u.uid), { email: u.email, at });
+  b.set(doc(db, 'members', u.uid), { ...base, ...info }, { merge: true });
+  await b.commit();
+  await savePhone(u);
+}
 async function ensureProfile(u) {
   const mref = doc(db, 'members', u.uid);
   const snap = await getDoc(mref);
+  if (isAdminPh(u.email)) { await makeAdmin(u, !snap.exists()); return; }
   if (snap.exists()) return;
   const r = reg || {};
   const name = r.name || (u.email || '').split('@')[0], title = r.title || '';
@@ -178,12 +191,13 @@ async function resolveEmail(v) {
   if (!s.exists() || !s.data().email) { const x = new Error('not found'); x.code = 'phone-not-found'; throw x; }
   return s.data().email;
 }
-let idxDone = null;
+let idxDone = null, adminFix = null;
 function subscribe(u) {
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
     prof = s.exists() ? s.data() : null;
     /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
+    if (s.exists() && isAdminPh(u.email) && (prof.role !== 'admin' || prof.status !== 'approved') && adminFix !== u.uid) { adminFix = u.uid; makeAdmin(u, false).catch(e => { msg = errText(e); render(); }); }
     if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { msg = errText(e); render(); });
