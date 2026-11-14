@@ -203,8 +203,11 @@ function cacheSave(u) {
     LS.setItem(pcKey(u), JSON.stringify({ p: prof, s: stats, m: prof.role === 'admin' ? members : null, f: [profLoaded, statsLoaded, memLoaded] }));
   } catch (e) { /* ignore */ }
 }
+/* একবার-যাচাই নীতি: ফোনে আগের যাচাই-করা পূর্ণ তথ্য থাকলে (cacheReady) পাতা সেটা দিয়ে একবারেই আঁকা থাকে; সার্ভার থেকে নতুন তথ্য এলে শুধু ভেতরে ও ফোনের ক্যাশে জমে, পাতা আবার আঁকে না — অ্যাপ থেকে বেরিয়ে আবার ঢুকলে নতুন তথ্য দেখায়। শুধু অনুমোদন-অবস্থা (state) বদলালে (যেমন বন্ধ করা হলো) সাথে সাথে আঁকে। */
+let lastSt = '';
+function quietRender() { const s = state(); if (!cacheReady || s !== lastSt) { lastSt = s; render(); } }
 function subscribe(u) {
-  cacheReady = false;
+  cacheReady = false; lastSt = '';
   try {
     const c = JSON.parse(LS.getItem(pcKey(u)) || 'null');
     if (c && c.p) {
@@ -223,28 +226,28 @@ function subscribe(u) {
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
     if (s.exists() && isAdminPh(u.email) && (prof.role !== 'admin' || prof.status !== 'approved') && adminFix !== u.uid) { adminFix = u.uid; makeAdmin(u, false).catch(e => { msg = errText(e); render(); }); }
     if (!s.exists() && srv && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
-    onStateChange(); render();
+    onStateChange(); quietRender();
   }, e => { profLoaded = true; msg = errText(e); render(); });
   unStats = onSnapshot(doc(db, 'stats', 'accounts'), IM, s => {
     const srv = !s.metadata.fromCache;
     stats = s.exists() ? s.data() : null; if (srv) { statsLoaded = true; cacheSave(u); }
-    render();
+    quietRender();
   }, () => { statsLoaded = true; render(); });
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
       unMem = onSnapshot(collection(db, 'members'), IM, q => {
         const srv = !q.metadata.fromCache;
-        if (!srv) { if (!memLoaded && !cacheReady) { members = q.docs.map(d => ({ id: d.id, ...d.data() })); } render(); return; }
+        if (!srv) { if (!memLoaded && !cacheReady) { members = q.docs.map(d => ({ id: d.id, ...d.data() })); } quietRender(); return; }
         members = q.docs.map(d => ({ id: d.id, ...d.data() })); memLoaded = true; cacheSave(u);
         { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
           if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
         const n = members.filter(m => m.status === 'pending').length;
         if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
-        render();
+        quietRender();
       }, () => { memLoaded = true; render(); });
     }
-    render();
+    quietRender();
   }, () => {});
 }
 function unsubscribeAll() {
