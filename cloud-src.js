@@ -122,11 +122,11 @@ function state() {
 }
 function errText(e) {
   const c = (e && e.code) || '';
-  if (/invalid-credential|wrong-password|user-not-found/.test(c)) return 'ইমেইল বা পাসওয়ার্ড ভুল';
-  if (/email-already-in-use/.test(c)) return 'এই ইমেইল দিয়ে আগেই অ্যাকাউন্ট আছে — লগইন করুন';
+  if (/invalid-credential|wrong-password|user-not-found/.test(c)) return 'ফোন নম্বর বা পাসওয়ার্ড ভুল';
+  if (/email-already-in-use/.test(c)) return 'এই ফোন নম্বর দিয়ে আগেই অ্যাকাউন্ট আছে — লগইন করুন';
   if (/weak-password/.test(c)) return 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে';
   if (/invalid-email/.test(c)) return 'ইমেইল সঠিক নয়';
-  if (/phone-login-off/.test(c)) return 'ফোন দিয়ে লগইন এখনো চালু হয়নি — ইমেইল দিয়ে লগইন করুন (অ্যাডমিন Firestore Rules পাবলিশ করলে চালু হবে)';
+  if (/phone-login-off/.test(c)) return 'ফোন নম্বর বা পাসওয়ার্ড ভুল';
   if (/phone-not-found/.test(c)) return 'এই নম্বরে কোনো অ্যাকাউন্ট পাওয়া যায়নি';
   if (/network/.test(c)) return 'ইন্টারনেট সংযোগ নেই';
   if (/operation-not-allowed/.test(c)) return 'Firebase-এ Email/Password লগইন চালু নেই';
@@ -137,6 +137,11 @@ function errText(e) {
 
 /* ---------- profile / approval ---------- */
 const normPhone = v => { v = String(v || '').replace(/[^\d+]/g, ''); return v.startsWith('+880') ? v : v.startsWith('0') ? '+880' + v.slice(1) : '+880' + v.replace(/^\+/, ''); };
+/* ইমেইল ছাড়া অ্যাকাউন্ট: ফোন নম্বর থেকে ভেতরে একটা অদৃশ্য আইডি বানানো হয় (Firebase-এর জন্য), ব্যবহারকারী কখনো ইমেইল দেখে না বা দেয় না */
+const PH_DOM = '@noorfashion.example';
+const phoneEmail = v => { let d = String(v || '').replace(/\D/g, ''); if (d.startsWith('880')) d = d.slice(3); else if (d.startsWith('0')) d = d.slice(1); return 'p' + d + PH_DOM; };
+const isPhoneEmail = e => String(e || '').endsWith(PH_DOM);
+const whoOf = o => (o && isPhoneEmail(o.email)) ? (o.phone || '') : ((o && o.email) || '');
 async function savePhone(u) {
   // ফোন → ইমেইল সূচি (ফোন দিয়ে লগইনের জন্য)। Rules পাবলিশ না থাকলে চুপচাপ বাদ যায়, সাইন-আপ আটকায় না
   try { if (reg && reg.phone) await setDoc(doc(db, 'phoneLogins', normPhone(reg.phone)), { uid: u.uid, email: u.email, at: Date.now() }); } catch (e) { /* ignore */ }
@@ -367,7 +372,7 @@ function renderAuth(cd) {
   cd.classList.add('axc');
   if (!reg_) {
     cd.innerHTML = `<div class="ax"><div class="ax-av"></div><h2 class="ax-t">Sign In</h2>
-      <div class="ax-f"><input class="ax-i" id="lgu" placeholder="Phone / Email" autocomplete="username"></div>
+      <div class="ax-f"><input class="ax-i" id="lgu" placeholder="Phone number" autocomplete="username"></div>
       <div class="ax-f ax-pw"><input class="ax-i" id="lgp" type="password" placeholder="Password" autocomplete="current-password"><span class="ax-eye" id="eye1">👁</span></div>
       <a class="ax-reset" id="nff">Reset Password</a>${er}
       <button class="ax-btn" id="nfgo">Sign in</button>
@@ -378,17 +383,33 @@ function renderAuth(cd) {
     const go = cd.querySelector('#nfgo');
     const submit = async () => {
       const v = (fv.lgu || '').trim(), p = fv.lgp || '';
-      if (!v || !p) { err('Phone / Email ও Password দিন'); return; }
+      if (!v || !p) { err('Phone ও Password দিন'); return; }
       err('অপেক্ষা করুন…'); go.disabled = true;
-      try { const m = await resolveEmail(v); await signInWithEmailAndPassword(auth, m, p); msg = ''; }
-      catch (x) { go.disabled = false; err(errText(x)); }
+      try {
+        if (v.includes('@')) await signInWithEmailAndPassword(auth, v, p);
+        else {
+          try { await signInWithEmailAndPassword(auth, phoneEmail(v), p); }
+          catch (x1) {
+            /* আগের (ইমেইলসহ) অ্যাকাউন্ট: ফোন → ইমেইল সূচি থেকে */
+            if (!/invalid-credential|wrong-password|user-not-found|invalid-email/.test((x1 && x1.code) || '')) throw x1;
+            let m = ''; try { m = await resolveEmail(v); } catch (x2) { throw x1; }
+            await signInWithEmailAndPassword(auth, m, p);
+          }
+        }
+        msg = '';
+      } catch (x) { go.disabled = false; err(errText(x)); }
     };
     go.onclick = submit;
     cd.querySelector('#lgp').onkeydown = e => { if (e.key === 'Enter') submit(); };
     cd.querySelector('#nff').onclick = async () => {
       const v = (fv.lgu || '').trim();
-      if (!v) { err('আগে Phone / Email লিখুন'); return; }
-      try { const m = await resolveEmail(v); await sendPasswordResetEmail(auth, m); err('পাসওয়ার্ড রিসেটের ইমেইল পাঠানো হয়েছে'); } catch (x) { err(errText(x)); }
+      if (!v) { err('আগে Phone নম্বর লিখুন'); return; }
+      try {
+        let m = v.includes('@') ? v : '';
+        if (!m) { try { m = await resolveEmail(v); } catch (e) { m = ''; } }
+        if (!m || isPhoneEmail(m)) { err('ফোন দিয়ে খোলা অ্যাকাউন্টের পাসওয়ার্ড ইমেইলে রিসেট হয় না — অ্যাডমিনের সাথে যোগাযোগ করুন'); return; }
+        await sendPasswordResetEmail(auth, m); err('পাসওয়ার্ড রিসেটের ইমেইল পাঠানো হয়েছে');
+      } catch (x) { err(errText(x)); }
     };
     return;
   }
@@ -396,24 +417,22 @@ function renderAuth(cd) {
     <div class="ax-f"><label class="ax-l">Name</label><input class="ax-i" id="fname" placeholder="Enter your name" autocomplete="name"></div>
     <div class="ax-f"><label class="ax-l">Designation</label><input class="ax-i" id="desig" placeholder="Enter your designation" autocomplete="organization-title"></div>
     <div class="ax-f"><label class="ax-l">Phone</label><input class="ax-i" id="phone" type="tel" minlength="7" maxlength="15" placeholder="Enter your phone number" autocomplete="tel"></div>
-    <div class="ax-f"><label class="ax-l">Email</label><input class="ax-i" id="email" type="email" placeholder="Email address" autocomplete="email"></div>
     <div class="ax-f"><label class="ax-l">Password</label><div class="ax-pw" style="position:relative"><input class="ax-i" id="spass" type="password" minlength="8" placeholder="Min 8 characters" autocomplete="new-password"><span class="ax-eye" id="eye2">👁</span></div></div>
     ${er}<button class="ax-btn" id="nfgo">Register</button>
     <div class="ax-foot">Already have an account? <a id="nft1">Sign in</a></div></div>`;
-  ['fname', 'desig', 'phone', 'email', 'spass'].forEach(k => { if (fv[k]) cd.querySelector('#' + k).value = fv[k]; });
+  ['fname', 'desig', 'phone', 'spass'].forEach(k => { if (fv[k]) cd.querySelector('#' + k).value = fv[k]; });
   cd.querySelector('#eye2').onclick = e => eye('spass', e.currentTarget);
   cd.querySelector('#nft1').onclick = () => { mode = 'login'; msg = ''; render(); };
   const go = cd.querySelector('#nfgo');
   go.onclick = async () => {
-    const name = (fv.fname || '').trim(), title = (fv.desig || '').trim(), phone = (fv.phone || '').trim(), email = (fv.email || '').trim(), pass = fv.spass || '';
+    const name = (fv.fname || '').trim(), title = (fv.desig || '').trim(), phone = (fv.phone || '').trim(), pass = fv.spass || '';
     if (!name) return err('Name লিখুন');
     if (!title) return err('Designation লিখুন');
     if (phone.replace(/\D/g, '').length < 7) return err('সঠিক Phone নম্বর দিন');
-    if (!email) return err('Email দিন');
     if (pass.length < 8) return err('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে');
     err('অপেক্ষা করুন…'); go.disabled = true;
     reg = { name, title, phone };
-    try { await createUserWithEmailAndPassword(auth, email, pass); msg = ''; }
+    try { await createUserWithEmailAndPassword(auth, phoneEmail(phone), pass); msg = ''; }
     catch (x) { reg = null; go.disabled = false; err(errText(x)); }
   };
 }
@@ -448,7 +467,7 @@ function lockRender() {
     const title = st === 'pending' ? '⏳ অনুমোদনের অপেক্ষায়' : st === 'rejected' ? '⛔ প্রবেশের অনুমতি নেই' : 'যাচাই হচ্ছে…';
     const body = st === 'pending' ? 'আপনার অ্যাকাউন্ট খোলা হয়েছে। অ্যাডমিন অনুমোদন দিলে অ্যাপ চালু হবে। অনুমোদনের পর এই পাতা নিজে থেকেই খুলে যাবে।'
       : st === 'rejected' ? 'অ্যাডমিন এই অ্যাকাউন্টে প্রবেশ বন্ধ রেখেছেন। প্রয়োজনে অ্যাডমিনের সাথে যোগাযোগ করুন।' : 'একটু অপেক্ষা করুন…';
-    cd.innerHTML = `<h3>${title}</h3><p>${esc(user.email)}<br>${body}</p>${er}<button id="nfo">লগআউট</button>`;
+    cd.innerHTML = `<h3>${title}</h3><p>${esc(whoOf({ email: user.email, phone: (prof && prof.phone) || (reg && reg.phone) || '' }))}<br>${body}</p>${er}<button id="nfo">লগআউট</button>`;
     cd.querySelector('#nfo').onclick = () => signOut(auth);
   }
 }
@@ -484,7 +503,7 @@ function delBox() {
 function approvalHTML() {
   if (!isAdm) return '';
   const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const row = m => `<div class="mr"><div><b>${esc(m.name || m.email)}${m.title ? ' — ' + esc(m.title) : ''}</b>${esc(m.email)}${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
+  const row = m => `<div class="mr"><div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${isPhoneEmail(m.email) ? '' : esc(m.email)}${m.phone ? (isPhoneEmail(m.email) ? '' : ' · ') + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
     ${m.id === user.uid ? '' : (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '')}</div>`;
   return `<div class="cd pf-ap"><h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('')}</div>`;
 }
@@ -495,7 +514,7 @@ function profRender(force) {
   if (!force && pf.sec && el.firstChild && el.querySelector('.pf-s')) return;
   const rowOf = (f, l, val, key) => `<div class="pf-r"><div><div class="pf-l">${l}</div><div class="pf-v">${esc(val) || 'N/A'}</div></div><span class="pf-e" data-ed="${key}">Edit</span></div>`;
   const rows = PF.map(([f, l]) => rowOf(f, l, prof[f], f) + (pf.sec === 'f' && pf.field === f ? editBox(f, l, prof[f] || '') : '')).join('')
-    + rowOf('email', 'Email', prof.email || user.email, '__email') + (pf.sec === 'e' ? emailBox() : '');
+    + (isPhoneEmail(prof.email || user.email) ? '' : rowOf('email', 'Email', prof.email || user.email, '__email') + (pf.sec === 'e' ? emailBox() : ''));
   el.innerHTML = `<div class="pf"><h3 class="pf-h">Profile${isAdm ? ' · Admin' : ''}</h3>${rows}
     <div class="pf-ft"><span class="pf-lk" data-act="openpass">Change Password</span><button class="pf-b" data-act="logout">Logout</button><span class="pf-lk dg" data-act="opendel">Delete Account</span></div>
     ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>${approvalHTML()}`;
