@@ -2,7 +2,7 @@
    Bundled by the build workflow into www/cloud.js */
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser } from 'firebase/auth';
-import { initializeFirestore, doc, collection, getDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { initializeFirestore, doc, collection, getDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc, getDocsFromServer } from 'firebase/firestore';
 
 const cfg = {
   apiKey: 'AIzaSyDJmVnJVChTZDV-OzOcGkLXvRG4kTu0ZJQ',
@@ -104,6 +104,7 @@ let user = null, prof = null, isAdm = false, members = [], reg = null, mode = 'l
 let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', district: '', area: '' };
 let unProf = null, unAdm = null, unMem = null, unOrg = null, unStats = null, stats = null, statsKey = '';
 let profLoaded = false, memLoaded = false, statsLoaded = false, cacheReady = false;
+let memErr = '', memAt = 0, memBusy = false, memOnce = false, memT = 0;
 let deleting = false, authReady = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
@@ -196,11 +197,11 @@ async function resolveEmail(v) {
 }
 let idxDone = null, adminFix = null;
 /* ফোনে রাখা শেষ পূর্ণ (সার্ভার-থেকে-আসা) প্রোফাইল/পরিসংখ্যান/সদস্য-তালিকা: পাতা সাথে সাথে এটা দিয়ে আঁকা হয়, সার্ভারের ডেটা এলে শুধু বদলানো অংশ জায়গায় বদলায় */
-const pcKey = u => 'nf_pc_' + u.uid;
+const pcKey = u => 'nf_pc2_' + u.uid;
 function cacheSave(u) {
   try {
     if (!prof) { LS.removeItem(pcKey(u)); return; }
-    LS.setItem(pcKey(u), JSON.stringify({ p: prof, s: stats, m: prof.role === 'admin' ? members : null, f: [profLoaded, statsLoaded, memLoaded] }));
+    LS.setItem(pcKey(u), JSON.stringify({ p: prof, s: stats, m: null, f: [profLoaded, statsLoaded, memLoaded] }));
   } catch (e) { /* ignore */ }
 }
 /* একবার-যাচাই নীতি: ফোনে আগের যাচাই-করা পূর্ণ তথ্য থাকলে (cacheReady) পাতা সেটা দিয়ে একবারেই আঁকা থাকে; সার্ভার থেকে নতুন তথ্য এলে শুধু ভেতরে ও ফোনের ক্যাশে জমে, পাতা আবার আঁকে না — অ্যাপ থেকে বেরিয়ে আবার ঢুকলে নতুন তথ্য দেখায়। শুধু অনুমোদন-অবস্থা (state) বদলালে (যেমন বন্ধ করা হলো) সাথে সাথে আঁকে। */
@@ -213,8 +214,8 @@ function subscribe(u) {
     if (c && c.p) {
       prof = c.p; if (c.s) stats = c.s;
       const adm0 = c.p.role === 'admin', f = c.f || [];
-      if (adm0 && Array.isArray(c.m)) { members = c.m; isAdm = true; }
-      cacheReady = !!(f[0] && (adm0 ? (f[2] && Array.isArray(c.m)) : f[1]));
+      if (adm0) isAdm = true; /* সাইডবারের মেনুর জন্য; আসল যাচাই নিচে admins/{uid} থেকে */
+      cacheReady = !!(f[0] && (adm0 || f[1]));
     }
   } catch (e) { /* ignore */ }
   const IM = { includeMetadataChanges: true }; /* সার্ভার নিশ্চিত করলে (ডেটা একই হলেও) আবার জানায়, তাই "সার্ভার থেকে এসেছে" ধরা নির্ভরযোগ্য */
@@ -230,29 +231,55 @@ function subscribe(u) {
   }, e => { profLoaded = true; msg = errText(e); render(); });
   unStats = onSnapshot(doc(db, 'stats', 'accounts'), IM, s => {
     const srv = !s.metadata.fromCache;
-    stats = s.exists() ? s.data() : null; if (srv) { statsLoaded = true; cacheSave(u); }
+    stats = s.exists() ? s.data() : null; if (srv) { statsLoaded = true; cacheSave(u); writeStats(); }
     quietRender();
   }, () => { statsLoaded = true; render(); });
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
+      /* শুধু সার্ভার থেকে আসা তালিকা নেওয়া হয়; ফোনের ক্যাশ থেকে আসা তালিকায় থাকে কেবল নিজের নাম, সেটা অসম্পূর্ণ */
       unMem = onSnapshot(collection(db, 'members'), IM, q => {
-        const srv = !q.metadata.fromCache;
-        if (!srv) { if (!memLoaded && !cacheReady) { members = q.docs.map(d => ({ id: d.id, ...d.data() })); } quietRender(); return; }
-        members = q.docs.map(d => ({ id: d.id, ...d.data() })); memLoaded = true; cacheSave(u);
-        { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
-          if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
-        const n = members.filter(m => m.status === 'pending').length;
-        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → অ্যাডমিন'); }
-        quietRender();
-      }, () => { memLoaded = true; render(); });
+        if (q.metadata.fromCache) return;
+        applyMembers(u, q.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, e => { memLoaded = true; memErr = errText(e) + ((e && e.code) ? ' [' + e.code + ']' : ''); render(); });
     }
     quietRender();
-  }, () => {});
+  }, e => { memErr = errText(e) + ((e && e.code) ? ' [' + e.code + ']' : ''); render(); });
+  clearTimeout(memT);
+  memT = setTimeout(() => { if (isAdm && !memLoaded && !memErr) { memErr = 'সার্ভার থেকে তালিকা আসছে না — ইন্টারনেট দেখে আবার চেষ্টা করুন'; render(); } }, 12000);
+}
+function applyMembers(u, list) {
+  if (user !== u) return;
+  members = list; memLoaded = true; memErr = ''; memAt = Date.now(); cacheSave(u);
+  writeStats();
+  const n = members.filter(m => m.status === 'pending').length;
+  if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → অ্যাডমিন'); }
+  quietRender();
+}
+/* গণনা (সংখ্যা) ফায়ারস্টোরে রাখা: peak = এ পর্যন্ত সর্বোচ্চ কতজন দেখা গিয়েছিল, যেন পরে সংখ্যা কমে গেলে ধরা যায় */
+function writeStats() {
+  if (!isAdm || !memLoaded || !statsLoaded) return;
+  const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
+  if (k === statsKey) return;
+  statsKey = k;
+  const peak = Math.max(c.total, (stats && (stats.peak || stats.total)) || 0);
+  setDoc(doc(db, 'stats', 'accounts'), { ...c, peak, at: Date.now() }).catch(() => { statsKey = ''; });
+}
+/* সার্ভার থেকে সরাসরি সদস্য-তালিকা আনা (ক্যাশ নয়); ব্যর্থ হলে কারণ পাতায় দেখানো হয় */
+async function loadMembers() {
+  if (!user || memBusy) return;
+  const u = user; memBusy = true; memErr = ''; render();
+  try {
+    const q = await getDocsFromServer(collection(db, 'members'));
+    applyMembers(u, q.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) {
+    if (user === u) { memLoaded = true; memErr = errText(e) + ((e && e.code) ? ' [' + e.code + ']' : ''); }
+  }
+  memBusy = false; render();
 }
 function unsubscribeAll() {
   [unProf, unAdm, unMem, unOrg, unStats].forEach(f => f && f());
-  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = cacheReady = false;
+  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = cacheReady = false; memErr = ''; memAt = 0; memBusy = false; memOnce = false; clearTimeout(memT);
 }
 function onStateChange() {
   if (state() === 'ok') { if (!unOrg) startSync(); }
@@ -385,7 +412,12 @@ const cssPf = `
 .pf-ft .pf-b{width:auto;margin:0;padding:9px 18px;background:var(--no,#c8414f);color:#fff}
 .pf-st{margin:12px 0 0;padding:12px 14px;border-radius:14px;background:var(--c,#fff);border:1px solid var(--l,#e3e3e3);font-size:13px;line-height:1.7;color:var(--t,#111)}.pf-st b{font-size:15px}
 .pf-ap{margin-top:18px;padding-top:6px;border-top:2px solid var(--l,#e3e3e3)}
-#nfa .pf-ap{margin-top:12px;border-top:0;padding-top:0}`;
+#nfa .pf-ap{margin-top:12px;border-top:0;padding-top:0}
+#nfa [hidden]{display:none!important}
+#nfa .pf-st{min-height:20px}
+#nfa .pf-nt{margin:8px 0 0}
+#nfa .pf-sm{margin:8px 0 0;font-size:12px;color:var(--m,#6b6b6b);text-align:center}
+#nfa .pf-w{margin:10px 0 0}`;
 function ensureCss() {
   if (document.getElementById('nfcss')) return;
   const st = document.createElement('style'); st.id = 'nfcss'; st.textContent = css + cssAx + cssPf; document.head.appendChild(st);
@@ -544,12 +576,9 @@ function delBox() {
   if (isAdm) return `<div class="pf-s"><div class="pf-w">অ্যাডমিন অ্যাকাউন্ট মুছে ফেলা যাবে না — এতে প্রতিষ্ঠানের ডেটা অ্যাডমিনহীন হয়ে যাবে।</div><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
   return `<div class="pf-s"><div class="pf-w">Warning: Your account will be deleted permanently. Shared organisation data stays with the organisation.</div><input class="pf-i" id="pfdp" type="password" placeholder="Password" autocomplete="current-password"><div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-dg" data-act="delete">Yes, Delete</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
 }
-function approvalHTML() {
-  if (!isAdm) return '';
-  const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const row = m => `<div class="mr"><div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.role === 'admin' ? 'অ্যাডমিন · ' : ''}${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
-    ${m.id === user.uid ? '' : `<div class="ma">` + (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' && m.role !== 'admin' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '') + (m.role === 'admin' ? `<button data-dm="${m.id}">অ্যাডমিন থেকে সরান</button>` : (m.status === 'approved' ? `<button data-ad="${m.id}">অ্যাডমিন করুন</button>` : '')) + (m.role === 'admin' ? '' : `<button class="dg" data-rm="${m.id}">মুছুন</button>`) + '</div>'}</div>`;
-  return `<div class="cd pf-ap"><h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('')}</div>`;
+function memberRowHTML(m) {
+  return `<div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.role === 'admin' ? 'অ্যাডমিন · ' : ''}${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
+    ${m.id === user.uid ? '' : `<div class="ma">` + (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' && m.role !== 'admin' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '') + (m.role === 'admin' ? `<button data-dm="${m.id}">অ্যাডমিন থেকে সরান</button>` : (m.status === 'approved' ? `<button data-ad="${m.id}">অ্যাডমিন করুন</button>` : '')) + (m.role === 'admin' ? '' : `<button class="dg" data-rm="${m.id}">মুছুন</button>`) + '</div>'}`;
 }
 function countOf(list) {
   const c = { total: list.length, approved: 0, pending: 0, rejected: 0 };
@@ -557,9 +586,8 @@ function countOf(list) {
   return c;
 }
 function statsHTML() {
-  const c = isAdm && members.length ? countOf(members) : stats;
-  if (!c || !c.total) return '';
-  return `<div class="pf-st">মোট অ্যাকাউন্ট: <b>${bn(c.total)} জন</b><br>চালু ${bn(c.approved || 0)} · অপেক্ষায় ${bn(c.pending || 0)} · বন্ধ ${bn(c.rejected || 0)}</div>`;
+  const c = countOf(members);
+  return `মোট অ্যাকাউন্ট: <b>${bn(c.total)} জন</b><br>চালু ${bn(c.approved)} · অপেক্ষায় ${bn(c.pending)} · বন্ধ ${bn(c.rejected)}`;
 }
 function profRender(force) {
   const el = pfEl(); if (!el || !user || !prof) return;
@@ -581,15 +609,56 @@ function profRender(force) {
   el.style.visibility = 'visible';
 }
 /* ---------- অ্যাডমিন পাতা (সাইডবারের "অ্যাডমিন"): শুধু Firestore-এ admins/{uid} থাকলে দেখা যায় ---------- */
+/* অ্যাডমিন পাতা: কাঠামো একবারই বানানো হয়; পরে শুধু যে অংশ বদলেছে সেটুকু জায়গায় বদলায় (পুরো পাতা মুছে আবার আঁকা হয় না), তাই ঝিলিক নেই */
+function adminShell(el) {
+  el.innerHTML = '<div class="pf-st" data-a="ld"></div><div data-a="msg"></div><div class="pf-st" data-a="st" hidden></div><div data-a="nt" hidden></div><div class="cd pf-ap" data-a="ap" hidden><h4 data-a="h"></h4><div data-a="rows"></div></div>';
+  el._init = 1; el.onclick = onProfClick; el._h = null;
+}
 function adminRender() {
   const el = document.getElementById('nfa'); if (!el || !user) return;
   ensureCss();
-  if (!el._init) { el._init = 1; el.onclick = onProfClick; }
-  let h;
-  if (!isAdm) h = profLoaded ? '<div class="cd pf-ap"><h4>অ্যাডমিন</h4><div class="pf-w">এই পাতা শুধু অ্যাডমিনের জন্য।</div></div>' : '<div class="pf-st">লোড হচ্ছে…</div>';
-  else if (!memLoaded && !members.length) h = '<div class="pf-st">লোড হচ্ছে…</div>';
-  else h = statsHTML() + approvalHTML();
-  if (el._h !== h) { el.innerHTML = h; el._h = h; }
+  if (!el._init || !el.querySelector('[data-a="ld"]')) adminShell(el);
+  const q = k => el.querySelector('[data-a="' + k + '"]');
+  const html = (n, h) => { if (n._h !== h) { n.innerHTML = h; n._h = h; } };
+  const text = (n, t) => { if (n._t !== t) { n.textContent = t; n._t = t; } };
+  const show = (n, on) => { if (n.hidden === on) n.hidden = !on; };
+  const ld = q('ld'), msg = q('msg'), st = q('st'), nt = q('nt'), ap = q('ap');
+  if (!isAdm) {
+    show(st, false); show(nt, false); show(ap, false);
+    if (profLoaded) { show(ld, false); html(msg, '<div class="cd pf-ap"><h4>অ্যাডমিন</h4><div class="pf-w">এই পাতা শুধু অ্যাডমিনের জন্য।</div></div>'); }
+    else { html(msg, ''); show(ld, true); text(ld, 'লোড হচ্ছে…'); }
+    return;
+  }
+  if (!memOnce) { memOnce = true; loadMembers(); }
+  if (!memLoaded) {
+    show(st, false); show(nt, false); show(ap, false);
+    if (memErr) { show(ld, false); html(msg, '<div class="pf-w">' + esc(memErr) + '</div><div style="text-align:center"><span class="pf-lk" data-act="memreload">আবার চেষ্টা করুন</span></div>'); }
+    else { html(msg, ''); show(ld, true); text(ld, 'লোড হচ্ছে…'); }
+    return;
+  }
+  show(ld, false); html(msg, '');
+  const c = countOf(members), peak = (stats && (stats.peak || stats.total)) || 0;
+  show(st, true); html(st, statsHTML());
+  const hm = d => { const x = new Date(d); return bn(String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0')); };
+  const sm = 'সার্ভার থেকে পাওয়া ' + bn(members.length) + ' জনের তথ্য · ' + hm(memAt || Date.now());
+  show(nt, true);
+  html(nt, (memErr ? '<div class="pf-w">' + esc(memErr) + '</div>' : '')
+    + (peak > c.total ? '<div class="pf-w">আগে সর্বোচ্চ ' + bn(peak) + ' জন রেকর্ড হয়েছিল, কিন্তু এখন ফায়ারস্টোরে ' + bn(c.total) + ' জনের তথ্য পাওয়া যাচ্ছে। বাকিদের তথ্য ফায়ারস্টোরের members তালিকায় নেই; তারা আবার লগইন করলে নতুন করে অপেক্ষায় আসবে।</div>' : '')
+    + '<div class="pf-sm">' + sm + ' · <span class="pf-lk" data-act="memreload">' + (memBusy ? 'আনা হচ্ছে…' : 'রিফ্রেশ') + '</span></div>');
+  show(ap, true);
+  text(q('h'), 'অ্যাকাউন্ট অনুমোদন' + (c.pending ? ' (' + bn(c.pending) + ' জন অপেক্ষায়)' : ''));
+  const list = members.filter(m => m.status === 'pending').concat(members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+  const box = q('rows'), have = new Map();
+  [...box.children].forEach(n => have.set(n.dataset.id, n));
+  let ref = box.firstElementChild;
+  list.forEach(m => {
+    let n = have.get(m.id); have.delete(m.id);
+    if (!n) { n = document.createElement('div'); n.className = 'mr'; n.dataset.id = m.id; }
+    const h = memberRowHTML(m);
+    if (n._h !== h) { n.innerHTML = h; n._h = h; }
+    if (n === ref) ref = ref.nextElementSibling; else box.insertBefore(n, ref);
+  });
+  have.forEach(n => n.remove());
 }
 const pfAfter = () => { setTimeout(() => { profRender(true); adminRender(); }, 350); setTimeout(() => { profRender(true); adminRender(); }, 1500); };
 async function onProfClick(e) {
@@ -603,6 +672,7 @@ async function onProfClick(e) {
   if (d.rm) return removeMember(d.rm);
   if (d.ed) { pf = { sec: 'f', field: d.ed, err: '' }; return profRender(true); }
   const a = d.act;
+  if (a === 'memreload') return loadMembers();
   if (a === 'cancel') return pfReset();
   if (a === 'openpass') { pf = { sec: 'p', field: '', err: '' }; return profRender(true); }
   if (a === 'opendel') { pf = { sec: 'd', field: '', err: '' }; return profRender(true); }
