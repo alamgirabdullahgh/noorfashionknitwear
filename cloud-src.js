@@ -195,15 +195,17 @@ async function resolveEmail(v) {
 }
 let idxDone = null, adminFix = null;
 function subscribe(u) {
+  try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c && c.p) { prof = c.p; if (c.s) stats = c.s; } } catch (e) { /* ignore */ }
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
     prof = s.exists() ? s.data() : null;
+    try { if (prof) LS.setItem('nf_pc_' + u.uid, JSON.stringify({ p: prof, s: stats })); else LS.removeItem('nf_pc_' + u.uid); } catch (e) { /* ignore */ }
     /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
     if (s.exists() && isAdminPh(u.email) && (prof.role !== 'admin' || prof.status !== 'approved') && adminFix !== u.uid) { adminFix = u.uid; makeAdmin(u, false).catch(e => { msg = errText(e); render(); }); }
     if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { msg = errText(e); render(); });
-  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; render(); }, () => {});
+  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c) { c.s = stats; LS.setItem('nf_pc_' + u.uid, JSON.stringify(c)); } } catch (e) { /* ignore */ } render(); }, () => {});
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
@@ -532,18 +534,23 @@ function statsHTML() {
 function profRender(force) {
   const el = pfEl(); if (!el || !user) return;
   ensureCss();
-  if (!prof) { const lh = '<div class="pf"><h3 class="pf-h">Profile</h3><div class="pf-v">লোড হচ্ছে…</div></div>'; if (el._h !== lh) { el.innerHTML = lh; el._h = lh; } return; }
-  if (!force && pf.sec && el.firstChild && el.querySelector('.pf-s')) return;
-  const rowOf = (f, l, val, key) => `<div class="pf-r"><div><div class="pf-l">${l}</div><div class="pf-v">${esc(val) || 'N/A'}</div></div><span class="pf-e" data-ed="${key}">Edit</span></div>`;
-  const rows = PF.map(([f, l]) => rowOf(f, l, prof[f], f) + (pf.sec === 'f' && pf.field === f ? editBox(f, l, prof[f] || '') : '')).join('')
-  const html = `<div class="pf"><h3 class="pf-h">Profile${isAdm ? ' · Admin' : ''}</h3>${rows}
+  if (!el._init) { el.innerHTML = '<div data-p="a"></div><div data-p="b"></div><div data-p="c"></div>'; el._init = 1; el.onclick = onProfClick; }
+  const part = (k, h) => { const n = el.querySelector('[data-p="' + k + '"]'); if (!n || n._h === h) return false; n.innerHTML = h; n._h = h; return true; };
+  if (!prof) { part('a', '<div class="pf"><h3 class="pf-h">Profile</h3><div class="pf-v">লোড হচ্ছে…</div></div>'); part('b', ''); part('c', ''); return; }
+  const adm = isAdm || prof.role === 'admin';
+  const A = el.querySelector('[data-p="a"]');
+  if (force || !(pf.sec && A.querySelector('.pf-s'))) {
+    const rowOf = (f, l, val, key) => `<div class="pf-r"><div><div class="pf-l">${l}</div><div class="pf-v">${esc(val) || 'N/A'}</div></div><span class="pf-e" data-ed="${key}">Edit</span></div>`;
+    const rows = PF.map(([f, l]) => rowOf(f, l, prof[f], f) + (pf.sec === 'f' && pf.field === f ? editBox(f, l, prof[f] || '') : '')).join('');
+    const html = `<div class="pf"><h3 class="pf-h">Profile${adm ? ' · Admin' : ''}</h3>${rows}
     <div class="pf-ft"><span class="pf-lk" data-act="openpass">Change Password</span><button class="pf-b" data-act="logout">Logout</button><span class="pf-lk dg" data-act="opendel">Delete Account</span></div>
-    ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>${statsHTML()}${approvalHTML()}`;
-  el.onclick = onProfClick;
-  if (el._h === html) return;
-  el.innerHTML = html; el._h = html;
-  const sec = el.querySelector('.pf-s'); if (sec) { try { sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* ignore */ } const i = sec.querySelector('input,select'); if (i) i.focus(); }
-  el.onclick = onProfClick;
+    ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>`;
+    if (part('a', html)) {
+      const sec = A.querySelector('.pf-s'); if (sec) { try { sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* ignore */ } const i = sec.querySelector('input,select'); if (i) i.focus(); }
+    }
+  }
+  part('b', statsHTML());
+  part('c', approvalHTML());
 }
 async function onProfClick(e) {
   const t = e.target.closest('[data-ed],[data-act],[data-ap],[data-rj],[data-ad],[data-dm],[data-rm]'); if (!t) return;
