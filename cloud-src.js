@@ -103,6 +103,7 @@ const orgRef = () => doc(db, 'org', 'main');
 let user = null, prof = null, isAdm = false, members = [], reg = null, mode = 'login';
 let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', district: '', area: '' };
 let unProf = null, unAdm = null, unMem = null, unOrg = null, unStats = null, stats = null, statsKey = '';
+let profLoaded = false, memLoaded = false, statsLoaded = false;
 let deleting = false, authReady = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
@@ -197,33 +198,33 @@ let idxDone = null, adminFix = null;
 function subscribe(u) {
   try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c && c.p) { prof = c.p; if (c.s) stats = c.s; } } catch (e) { /* ignore */ }
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
-    prof = s.exists() ? s.data() : null;
+    prof = s.exists() ? s.data() : null; profLoaded = true;
     try { if (prof) LS.setItem('nf_pc_' + u.uid, JSON.stringify({ p: prof, s: stats })); else LS.removeItem('nf_pc_' + u.uid); } catch (e) { /* ignore */ }
     /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
     if (s.exists() && isAdminPh(u.email) && (prof.role !== 'admin' || prof.status !== 'approved') && adminFix !== u.uid) { adminFix = u.uid; makeAdmin(u, false).catch(e => { msg = errText(e); render(); }); }
     if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
-  }, e => { msg = errText(e); render(); });
-  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c) { c.s = stats; LS.setItem('nf_pc_' + u.uid, JSON.stringify(c)); } } catch (e) { /* ignore */ } render(); }, () => {});
+  }, e => { profLoaded = true; msg = errText(e); render(); });
+  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; statsLoaded = true; try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c) { c.s = stats; LS.setItem('nf_pc_' + u.uid, JSON.stringify(c)); } } catch (e) { /* ignore */ } render(); }, () => { statsLoaded = true; render(); });
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
       unMem = onSnapshot(collection(db, 'members'), q => {
-        members = q.docs.map(d => ({ id: d.id, ...d.data() }));
+        members = q.docs.map(d => ({ id: d.id, ...d.data() })); memLoaded = true;
         { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
           if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
         const n = members.filter(m => m.status === 'pending').length;
         if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
         render();
-      }, () => {});
+      }, () => { memLoaded = true; render(); });
     }
     render();
   }, () => {});
 }
 function unsubscribeAll() {
   [unProf, unAdm, unMem, unOrg, unStats].forEach(f => f && f());
-  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false;
+  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = false;
 }
 function onStateChange() {
   if (state() === 'ok') { if (!unOrg) startSync(); }
@@ -534,9 +535,16 @@ function statsHTML() {
 function profRender(force) {
   const el = pfEl(); if (!el || !user) return;
   ensureCss();
-  if (!el._init) { el.innerHTML = '<div data-p="a"></div><div data-p="b"></div><div data-p="c"></div>'; el._init = 1; el.onclick = onProfClick; }
+  if (!el._init) {
+    el.innerHTML = '<div data-p="a"></div><div data-p="b"></div><div data-p="c"></div>'; el._init = 1; el.onclick = onProfClick;
+    el.style.visibility = 'hidden'; /* ডেটা সব এলে একবারেই দেখাবে (Rah Care-এর মতো) */
+    el._t = setTimeout(() => { el._fb = 1; if (pfEl() === el) profRender(false); }, 2500);
+  }
+  const ready = profLoaded && prof && (prof.role === 'admin' ? memLoaded : statsLoaded);
+  if (!prof) return;
+  if (!(el._done || el._fb || ready)) return;
+  if (el._done && !force) return; /* একবার আঁকা হলে লাইভ আপডেটে আর নড়বে না */
   const part = (k, h) => { const n = el.querySelector('[data-p="' + k + '"]'); if (!n || n._h === h) return false; n.innerHTML = h; n._h = h; return true; };
-  if (!prof) { part('a', '<div class="pf"><h3 class="pf-h">Profile</h3><div class="pf-v">লোড হচ্ছে…</div></div>'); part('b', ''); part('c', ''); return; }
   const adm = isAdm || prof.role === 'admin';
   const A = el.querySelector('[data-p="a"]');
   if (force || !(pf.sec && A.querySelector('.pf-s'))) {
@@ -551,7 +559,10 @@ function profRender(force) {
   }
   part('b', statsHTML());
   part('c', approvalHTML());
+  if (ready) el._done = true;
+  clearTimeout(el._t); el.style.visibility = 'visible';
 }
+const pfAfter = () => { setTimeout(() => profRender(true), 350); setTimeout(() => profRender(true), 1500); };
 async function onProfClick(e) {
   const t = e.target.closest('[data-ed],[data-act],[data-ap],[data-rj],[data-ad],[data-dm],[data-rm]'); if (!t) return;
   const el = pfEl(), g = id => el.querySelector('#' + id);
@@ -606,7 +617,7 @@ async function onProfClick(e) {
   }
 }
 async function decide(id, status) {
-  try { await updateDoc(doc(db, 'members', id), { status, decidedAt: Date.now(), decidedBy: user.email }); }
+  try { await updateDoc(doc(db, 'members', id), { status, decidedAt: Date.now(), decidedBy: user.email }); pfAfter(); }
   catch (e) { syncMsg = errText(e); render(); }
 }
 async function setAdmin(id, on) {
@@ -617,7 +628,7 @@ async function setAdmin(id, on) {
     const b = writeBatch(db), at = Date.now();
     if (on) { b.set(doc(db, 'admins', id), { email: m.email || '', at }); b.update(doc(db, 'members', id), { role: 'admin', status: 'approved', decidedAt: at, decidedBy: user.email }); }
     else { b.delete(doc(db, 'admins', id)); b.update(doc(db, 'members', id), { role: 'staff', decidedAt: at, decidedBy: user.email }); }
-    await b.commit(); tst(on ? 'অ্যাডমিন করা হয়েছে' : 'অ্যাডমিন থেকে সরানো হয়েছে');
+    await b.commit(); pfAfter(); tst(on ? 'অ্যাডমিন করা হয়েছে' : 'অ্যাডমিন থেকে সরানো হয়েছে');
   } catch (e) { tst(errText(e)); }
 }
 async function removeMember(id) {
@@ -626,7 +637,7 @@ async function removeMember(id) {
   try {
     await deleteDoc(doc(db, 'members', id));
     try { if (m.phone) { const r = doc(db, 'phoneLogins', normPhone(m.phone)), x = await getDoc(r); if (x.exists() && x.data().uid === id) await deleteDoc(r); } } catch (e) { /* ignore */ }
-    tst('মুছে ফেলা হয়েছে');
+    pfAfter(); tst('মুছে ফেলা হয়েছে');
   } catch (e) { tst(errText(e)); }
 }
 let rqT = 0;
