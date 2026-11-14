@@ -198,7 +198,7 @@ let idxDone = null, adminFix = null;
 function subscribe(u) {
   try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c && c.p) { prof = c.p; if (c.s) stats = c.s; } } catch (e) { /* ignore */ }
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
-    prof = s.exists() ? s.data() : null; profLoaded = true;
+    prof = s.exists() ? s.data() : null; if (!s.metadata.fromCache) profLoaded = true;
     try { if (prof) LS.setItem('nf_pc_' + u.uid, JSON.stringify({ p: prof, s: stats })); else LS.removeItem('nf_pc_' + u.uid); } catch (e) { /* ignore */ }
     /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
@@ -206,16 +206,16 @@ function subscribe(u) {
     if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { profLoaded = true; msg = errText(e); render(); });
-  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; statsLoaded = true; try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c) { c.s = stats; LS.setItem('nf_pc_' + u.uid, JSON.stringify(c)); } } catch (e) { /* ignore */ } render(); }, () => { statsLoaded = true; render(); });
+  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; if (!s.metadata.fromCache) statsLoaded = true; try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c) { c.s = stats; LS.setItem('nf_pc_' + u.uid, JSON.stringify(c)); } } catch (e) { /* ignore */ } render(); }, () => { statsLoaded = true; render(); });
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
       unMem = onSnapshot(collection(db, 'members'), q => {
-        members = q.docs.map(d => ({ id: d.id, ...d.data() })); memLoaded = true;
-        { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
+        members = q.docs.map(d => ({ id: d.id, ...d.data() })); const srv = !q.metadata.fromCache; if (srv) memLoaded = true;
+        if (srv) { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
           if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
         const n = members.filter(m => m.status === 'pending').length;
-        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
+        if (srv && n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
         render();
       }, () => { memLoaded = true; render(); });
     }
@@ -542,8 +542,7 @@ function profRender(force) {
   }
   const ready = profLoaded && prof && (prof.role === 'admin' ? memLoaded : statsLoaded);
   if (!prof) return;
-  if (!(el._done || el._fb || ready)) return;
-  if (el._done && !force) return; /* একবার আঁকা হলে লাইভ আপডেটে আর নড়বে না */
+  if (!(el._fb || ready)) return;
   const part = (k, h) => { const n = el.querySelector('[data-p="' + k + '"]'); if (!n || n._h === h) return false; n.innerHTML = h; n._h = h; return true; };
   const adm = isAdm || prof.role === 'admin';
   const A = el.querySelector('[data-p="a"]');
@@ -559,7 +558,6 @@ function profRender(force) {
   }
   part('b', statsHTML());
   part('c', approvalHTML());
-  if (ready) el._done = true;
   clearTimeout(el._t); el.style.visibility = 'visible';
 }
 const pfAfter = () => { setTimeout(() => profRender(true), 350); setTimeout(() => profRender(true), 1500); };
