@@ -205,7 +205,7 @@ function cacheSave(u) {
 }
 /* একবার-যাচাই নীতি: ফোনে আগের যাচাই-করা পূর্ণ তথ্য থাকলে (cacheReady) পাতা সেটা দিয়ে একবারেই আঁকা থাকে; সার্ভার থেকে নতুন তথ্য এলে শুধু ভেতরে ও ফোনের ক্যাশে জমে, পাতা আবার আঁকে না — অ্যাপ থেকে বেরিয়ে আবার ঢুকলে নতুন তথ্য দেখায়। শুধু অনুমোদন-অবস্থা (state) বদলালে (যেমন বন্ধ করা হলো) সাথে সাথে আঁকে। */
 let lastSt = '';
-function quietRender() { const s = state(); if (!cacheReady || s !== lastSt) { lastSt = s; render(); } }
+function quietRender() { lastSt = state(); render(); }
 function subscribe(u) {
   cacheReady = false; lastSt = '';
   try {
@@ -243,7 +243,7 @@ function subscribe(u) {
         { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
           if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
         const n = members.filter(m => m.status === 'pending').length;
-        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
+        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → অ্যাডমিন'); }
         quietRender();
       }, () => { memLoaded = true; render(); });
     }
@@ -384,7 +384,8 @@ const cssPf = `
 .pf-lk{color:var(--pr,#0f5132);font-size:13px;font-weight:700;cursor:pointer;padding:8px 2px}.pf-lk.dg{color:var(--no,#c8414f)}
 .pf-ft .pf-b{width:auto;margin:0;padding:9px 18px;background:var(--no,#c8414f);color:#fff}
 .pf-st{margin:12px 0 0;padding:12px 14px;border-radius:14px;background:var(--c,#fff);border:1px solid var(--l,#e3e3e3);font-size:13px;line-height:1.7;color:var(--t,#111)}.pf-st b{font-size:15px}
-.pf-ap{margin-top:18px;padding-top:6px;border-top:2px solid var(--l,#e3e3e3)}`;
+.pf-ap{margin-top:18px;padding-top:6px;border-top:2px solid var(--l,#e3e3e3)}
+#nfa .pf-ap{margin-top:12px;border-top:0;padding-top:0}`;
 function ensureCss() {
   if (document.getElementById('nfcss')) return;
   const st = document.createElement('style'); st.id = 'nfcss'; st.textContent = css + cssAx + cssPf; document.head.appendChild(st);
@@ -561,16 +562,9 @@ function statsHTML() {
   return `<div class="pf-st">মোট অ্যাকাউন্ট: <b>${bn(c.total)} জন</b><br>চালু ${bn(c.approved || 0)} · অপেক্ষায় ${bn(c.pending || 0)} · বন্ধ ${bn(c.rejected || 0)}</div>`;
 }
 function profRender(force) {
-  const el = pfEl(); if (!el || !user) return;
+  const el = pfEl(); if (!el || !user || !prof) return;
   ensureCss();
-  if (!el._init) {
-    el.innerHTML = '<div data-p="a"></div><div data-p="b"></div><div data-p="c"></div>'; el._init = 1; el.onclick = onProfClick;
-    if (!cacheReady) { el.style.visibility = 'hidden'; /* ফোনে আগের পূর্ণ ডেটা না থাকলে সব এলে একবারেই দেখাবে */
-      el._t = setTimeout(() => { el._fb = 1; if (pfEl() === el) profRender(false); }, 4000); }
-  }
-  const ready = cacheReady || (profLoaded && prof && (prof.role === 'admin' ? memLoaded : statsLoaded));
-  if (!prof) return;
-  if (!(el._fb || ready)) return;
+  if (!el._init) { el.innerHTML = '<div data-p="a"></div>'; el._init = 1; el.onclick = onProfClick; }
   const part = (k, h) => { const n = el.querySelector('[data-p="' + k + '"]'); if (!n || n._h === h) return false; n.innerHTML = h; n._h = h; return true; };
   const adm = isAdm || prof.role === 'admin';
   const A = el.querySelector('[data-p="a"]');
@@ -584,11 +578,20 @@ function profRender(force) {
       const sec = A.querySelector('.pf-s'); if (sec) { try { sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* ignore */ } const i = sec.querySelector('input,select'); if (i) i.focus(); }
     }
   }
-  part('b', statsHTML());
-  part('c', approvalHTML());
-  clearTimeout(el._t); el.style.visibility = 'visible';
+  el.style.visibility = 'visible';
 }
-const pfAfter = () => { setTimeout(() => profRender(true), 350); setTimeout(() => profRender(true), 1500); };
+/* ---------- অ্যাডমিন পাতা (সাইডবারের "অ্যাডমিন"): শুধু Firestore-এ admins/{uid} থাকলে দেখা যায় ---------- */
+function adminRender() {
+  const el = document.getElementById('nfa'); if (!el || !user) return;
+  ensureCss();
+  if (!el._init) { el._init = 1; el.onclick = onProfClick; }
+  let h;
+  if (!isAdm) h = profLoaded ? '<div class="cd pf-ap"><h4>অ্যাডমিন</h4><div class="pf-w">এই পাতা শুধু অ্যাডমিনের জন্য।</div></div>' : '<div class="pf-st">লোড হচ্ছে…</div>';
+  else if (!memLoaded && !members.length) h = '<div class="pf-st">লোড হচ্ছে…</div>';
+  else h = statsHTML() + approvalHTML();
+  if (el._h !== h) { el.innerHTML = h; el._h = h; }
+}
+const pfAfter = () => { setTimeout(() => { profRender(true); adminRender(); }, 350); setTimeout(() => { profRender(true); adminRender(); }, 1500); };
 async function onProfClick(e) {
   const t = e.target.closest('[data-ed],[data-act],[data-ap],[data-rj],[data-ad],[data-dm],[data-rm]'); if (!t) return;
   const el = pfEl(), g = id => el.querySelector('#' + id);
@@ -669,7 +672,7 @@ async function removeMember(id) {
 let rqT = 0;
 function render() {
   if (rqT) return;
-  const run = () => { rqT = 0; lockRender(); profRender(false); };
+  const run = () => { rqT = 0; lockRender(); profRender(false); adminRender(); };
   rqT = (window.requestAnimationFrame || (f => setTimeout(f, 16)))(run);
 }
 
@@ -680,5 +683,5 @@ onAuthStateChanged(auth, u => {
   render();
 });
 window.addEventListener('online', () => { if (state() === 'ok' && LS.getItem('nf_dirty') === '1') schedule(); });
-window.NFC = { prof(reset) { if (reset) pf = { sec: '', field: '', err: '' }; profRender(!!reset); }, dirty() { LS.setItem('nf_dirty', '1'); if (state() === 'ok') schedule(); } };
+window.NFC = { isAdmin() { return !!isAdm; }, admin() { adminRender(); }, prof(reset) { if (reset) pf = { sec: '', field: '', err: '' }; profRender(!!reset); }, dirty() { LS.setItem('nf_dirty', '1'); if (state() === 'ok') schedule(); } };
 render();
