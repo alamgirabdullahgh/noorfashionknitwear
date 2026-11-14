@@ -149,10 +149,12 @@ async function savePhone(u) {
 /* স্থায়ী অ্যাডমিন নম্বর (firestore.rules-এর তালিকার সাথে মেলাতে হবে) */
 const ADMIN_PH = ['p1731141115' + PH_DOM, 'p1780972945' + PH_DOM];
 const isAdminPh = e => ADMIN_PH.includes(String(e || ''));
+const ADMIN_PRESET = { ['p1780972945' + PH_DOM]: { name: 'Alamgir Abdullah', title: 'Software engineer', phone: '01780972945' } };
 async function makeAdmin(u, fresh) {
   const r = reg || {}, at = Date.now(), b = writeBatch(db);
   const base = { email: u.email, status: 'approved', role: 'admin' };
-  const info = fresh ? { name: r.name || 'Admin', title: r.title || 'Admin', ...(r.phone ? { phone: r.phone } : {}), at } : {};
+  const pre = ADMIN_PRESET[u.email] || {};
+  const info = fresh ? { name: pre.name || r.name || 'Admin', title: pre.title || r.title || 'Admin', ...((pre.phone || r.phone) ? { phone: pre.phone || r.phone } : {}), at } : {};
   b.set(doc(db, 'admins', u.uid), { email: u.email, at });
   b.set(doc(db, 'members', u.uid), { ...base, ...info }, { merge: true });
   await b.commit();
@@ -285,7 +287,7 @@ const css = `.nfc,.nfl{position:fixed;inset:0;z-index:99999;display:flex;font-fa
 .cd .tabs{display:flex;gap:8px;margin-bottom:14px}.cd .tabs button{flex:1;margin:0}
 .cd .mr{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--l,#e3e3e3)}
 .cd .mr div{flex:1;min-width:0;font-size:13px}.cd .mr b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis}
-.cd .mr button{margin:0;padding:6px 12px;font-size:12px}
+.cd .mr button{margin:0;padding:6px 12px;font-size:12px}.cd .mr .ma{flex:none;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:52%}.cd .mr .ma button.dg{color:#c0392b;border-color:#c0392b}
 .cd .bd{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--g2,#bdbdbd);color:var(--m,#6b6b6b)}
 .cd h4{margin:14px 0 2px;font-size:14px}`;
 const cssAx = `
@@ -508,8 +510,8 @@ function delBox() {
 function approvalHTML() {
   if (!isAdm) return '';
   const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const row = m => `<div class="mr"><div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
-    ${m.id === user.uid ? '' : (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '')}</div>`;
+  const row = m => `<div class="mr"><div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.role === 'admin' ? 'অ্যাডমিন · ' : ''}${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
+    ${m.id === user.uid ? '' : `<div class="ma">` + (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' && m.role !== 'admin' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '') + (m.role === 'admin' ? `<button data-dm="${m.id}">অ্যাডমিন থেকে সরান</button>` : (m.status === 'approved' ? `<button data-ad="${m.id}">অ্যাডমিন করুন</button>` : '')) + (m.role === 'admin' ? '' : `<button class="dg" data-rm="${m.id}">মুছুন</button>`) + '</div>'}</div>`;
   return `<div class="cd pf-ap"><h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('')}</div>`;
 }
 function profRender(force) {
@@ -526,11 +528,14 @@ function profRender(force) {
   el.onclick = onProfClick;
 }
 async function onProfClick(e) {
-  const t = e.target.closest('[data-ed],[data-act],[data-ap],[data-rj]'); if (!t) return;
+  const t = e.target.closest('[data-ed],[data-act],[data-ap],[data-rj],[data-ad],[data-dm],[data-rm]'); if (!t) return;
   const el = pfEl(), g = id => el.querySelector('#' + id);
   const d = t.dataset;
   if (d.ap) return decide(d.ap, 'approved');
   if (d.rj) return decide(d.rj, 'rejected');
+  if (d.ad) return setAdmin(d.ad, true);
+  if (d.dm) return setAdmin(d.dm, false);
+  if (d.rm) return removeMember(d.rm);
   if (d.ed) { pf = { sec: 'f', field: d.ed, err: '' }; return profRender(true); }
   const a = d.act;
   if (a === 'cancel') return pfReset();
@@ -578,6 +583,26 @@ async function onProfClick(e) {
 async function decide(id, status) {
   try { await updateDoc(doc(db, 'members', id), { status, decidedAt: Date.now(), decidedBy: user.email }); }
   catch (e) { syncMsg = errText(e); render(); }
+}
+async function setAdmin(id, on) {
+  const m = members.find(x => x.id === id); if (!m || id === user.uid) return;
+  const nm = m.name || whoOf(m) || 'এই সদস্য';
+  if (!confirm(on ? nm + ' কে অ্যাডমিন করবেন? অ্যাডমিন সবার অ্যাকাউন্ট ও প্রতিষ্ঠানের ডেটা পরিচালনা করতে পারে।' : nm + ' কে অ্যাডমিন থেকে সরাবেন? সে সাধারণ সদস্য হয়ে থাকবে।')) return;
+  try {
+    const b = writeBatch(db), at = Date.now();
+    if (on) { b.set(doc(db, 'admins', id), { email: m.email || '', at }); b.update(doc(db, 'members', id), { role: 'admin', status: 'approved', decidedAt: at, decidedBy: user.email }); }
+    else { b.delete(doc(db, 'admins', id)); b.update(doc(db, 'members', id), { role: 'staff', decidedAt: at, decidedBy: user.email }); }
+    await b.commit(); tst(on ? 'অ্যাডমিন করা হয়েছে' : 'অ্যাডমিন থেকে সরানো হয়েছে');
+  } catch (e) { tst(errText(e)); }
+}
+async function removeMember(id) {
+  const m = members.find(x => x.id === id); if (!m || id === user.uid || m.role === 'admin') return;
+  if (!confirm((m.name || whoOf(m) || 'এই সদস্য') + ' কে মুছে ফেলবেন? সদস্য তালিকা থেকে চলে যাবে। ওই ব্যক্তি আবার লগইন করলে নতুন করে অনুমোদনের অপেক্ষায় আসবে।')) return;
+  try {
+    await deleteDoc(doc(db, 'members', id));
+    try { if (m.phone) { const r = doc(db, 'phoneLogins', normPhone(m.phone)), x = await getDoc(r); if (x.exists() && x.data().uid === id) await deleteDoc(r); } } catch (e) { /* ignore */ }
+    tst('মুছে ফেলা হয়েছে');
+  } catch (e) { tst(errText(e)); }
 }
 function render() { lockRender(); profRender(false); }
 
