@@ -103,7 +103,7 @@ const orgRef = () => doc(db, 'org', 'main');
 let user = null, prof = null, isAdm = false, members = [], reg = null, mode = 'login';
 let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', district: '', area: '' };
 let unProf = null, unAdm = null, unMem = null, unOrg = null, unStats = null, stats = null, statsKey = '';
-let profLoaded = false, memLoaded = false, statsLoaded = false;
+let profLoaded = false, memLoaded = false, statsLoaded = false, cacheReady = false;
 let deleting = false, authReady = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
@@ -195,27 +195,52 @@ async function resolveEmail(v) {
   return s.data().email;
 }
 let idxDone = null, adminFix = null;
+/* ফোনে রাখা শেষ পূর্ণ (সার্ভার-থেকে-আসা) প্রোফাইল/পরিসংখ্যান/সদস্য-তালিকা: পাতা সাথে সাথে এটা দিয়ে আঁকা হয়, সার্ভারের ডেটা এলে শুধু বদলানো অংশ জায়গায় বদলায় */
+const pcKey = u => 'nf_pc_' + u.uid;
+function cacheSave(u) {
+  try {
+    if (!prof) { LS.removeItem(pcKey(u)); return; }
+    LS.setItem(pcKey(u), JSON.stringify({ p: prof, s: stats, m: prof.role === 'admin' ? members : null, f: [profLoaded, statsLoaded, memLoaded] }));
+  } catch (e) { /* ignore */ }
+}
 function subscribe(u) {
-  try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c && c.p) { prof = c.p; if (c.s) stats = c.s; } } catch (e) { /* ignore */ }
-  unProf = onSnapshot(doc(db, 'members', u.uid), s => {
-    prof = s.exists() ? s.data() : null; if (!s.metadata.fromCache) profLoaded = true;
-    try { if (prof) LS.setItem('nf_pc_' + u.uid, JSON.stringify({ p: prof, s: stats })); else LS.removeItem('nf_pc_' + u.uid); } catch (e) { /* ignore */ }
+  cacheReady = false;
+  try {
+    const c = JSON.parse(LS.getItem(pcKey(u)) || 'null');
+    if (c && c.p) {
+      prof = c.p; if (c.s) stats = c.s;
+      const adm0 = c.p.role === 'admin', f = c.f || [];
+      if (adm0 && Array.isArray(c.m)) { members = c.m; isAdm = true; }
+      cacheReady = !!(f[0] && (adm0 ? (f[2] && Array.isArray(c.m)) : f[1]));
+    }
+  } catch (e) { /* ignore */ }
+  const IM = { includeMetadataChanges: true }; /* সার্ভার নিশ্চিত করলে (ডেটা একই হলেও) আবার জানায়, তাই "সার্ভার থেকে এসেছে" ধরা নির্ভরযোগ্য */
+  unProf = onSnapshot(doc(db, 'members', u.uid), IM, s => {
+    const srv = !s.metadata.fromCache;
+    prof = s.exists() ? s.data() : null; if (srv) profLoaded = true;
+    if (srv) cacheSave(u);
     /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
     if (s.exists() && isAdminPh(u.email) && (prof.role !== 'admin' || prof.status !== 'approved') && adminFix !== u.uid) { adminFix = u.uid; makeAdmin(u, false).catch(e => { msg = errText(e); render(); }); }
-    if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
+    if (!s.exists() && srv && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { profLoaded = true; msg = errText(e); render(); });
-  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; if (!s.metadata.fromCache) statsLoaded = true; try { const c = JSON.parse(LS.getItem('nf_pc_' + u.uid) || 'null'); if (c) { c.s = stats; LS.setItem('nf_pc_' + u.uid, JSON.stringify(c)); } } catch (e) { /* ignore */ } render(); }, () => { statsLoaded = true; render(); });
+  unStats = onSnapshot(doc(db, 'stats', 'accounts'), IM, s => {
+    const srv = !s.metadata.fromCache;
+    stats = s.exists() ? s.data() : null; if (srv) { statsLoaded = true; cacheSave(u); }
+    render();
+  }, () => { statsLoaded = true; render(); });
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
-      unMem = onSnapshot(collection(db, 'members'), q => {
-        members = q.docs.map(d => ({ id: d.id, ...d.data() })); const srv = !q.metadata.fromCache; if (srv) memLoaded = true;
-        if (srv) { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
+      unMem = onSnapshot(collection(db, 'members'), IM, q => {
+        const srv = !q.metadata.fromCache;
+        if (!srv) { if (!memLoaded && !cacheReady) { members = q.docs.map(d => ({ id: d.id, ...d.data() })); } render(); return; }
+        members = q.docs.map(d => ({ id: d.id, ...d.data() })); memLoaded = true; cacheSave(u);
+        { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
           if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
         const n = members.filter(m => m.status === 'pending').length;
-        if (srv && n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
+        if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
         render();
       }, () => { memLoaded = true; render(); });
     }
@@ -224,7 +249,7 @@ function subscribe(u) {
 }
 function unsubscribeAll() {
   [unProf, unAdm, unMem, unOrg, unStats].forEach(f => f && f());
-  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = false;
+  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = cacheReady = false;
 }
 function onStateChange() {
   if (state() === 'ok') { if (!unOrg) startSync(); }
@@ -537,10 +562,10 @@ function profRender(force) {
   ensureCss();
   if (!el._init) {
     el.innerHTML = '<div data-p="a"></div><div data-p="b"></div><div data-p="c"></div>'; el._init = 1; el.onclick = onProfClick;
-    el.style.visibility = 'hidden'; /* ডেটা সব এলে একবারেই দেখাবে (Rah Care-এর মতো) */
-    el._t = setTimeout(() => { el._fb = 1; if (pfEl() === el) profRender(false); }, 2500);
+    if (!cacheReady) { el.style.visibility = 'hidden'; /* ফোনে আগের পূর্ণ ডেটা না থাকলে সব এলে একবারেই দেখাবে */
+      el._t = setTimeout(() => { el._fb = 1; if (pfEl() === el) profRender(false); }, 4000); }
   }
-  const ready = profLoaded && prof && (prof.role === 'admin' ? memLoaded : statsLoaded);
+  const ready = cacheReady || (profLoaded && prof && (prof.role === 'admin' ? memLoaded : statsLoaded));
   if (!prof) return;
   if (!(el._fb || ready)) return;
   const part = (k, h) => { const n = el.querySelector('[data-p="' + k + '"]'); if (!n || n._h === h) return false; n.innerHTML = h; n._h = h; return true; };
@@ -652,5 +677,5 @@ onAuthStateChanged(auth, u => {
   render();
 });
 window.addEventListener('online', () => { if (state() === 'ok' && LS.getItem('nf_dirty') === '1') schedule(); });
-window.NFC = { prof() { pf = { sec: '', field: '', err: '' }; profRender(true); }, dirty() { LS.setItem('nf_dirty', '1'); if (state() === 'ok') schedule(); } };
+window.NFC = { prof(reset) { if (reset) pf = { sec: '', field: '', err: '' }; profRender(!!reset); }, dirty() { LS.setItem('nf_dirty', '1'); if (state() === 'ok') schedule(); } };
 render();
