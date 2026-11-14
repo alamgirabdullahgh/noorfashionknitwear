@@ -105,7 +105,7 @@ let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', distr
 let unProf = null, unAdm = null, unMem = null, unOrg = null, unStats = null, stats = null, statsKey = '';
 let profLoaded = false, memLoaded = false, statsLoaded = false, cacheReady = false;
 let memErr = '', memAt = 0, memBusy = false, memOnce = false, memT = 0;
-let deleting = false, authReady = false;
+let deleting = false, authReady = false, hadProf = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
 const bn = n => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
@@ -221,8 +221,12 @@ function subscribe(u) {
   const IM = { includeMetadataChanges: true }; /* সার্ভার নিশ্চিত করলে (ডেটা একই হলেও) আবার জানায়, তাই "সার্ভার থেকে এসেছে" ধরা নির্ভরযোগ্য */
   unProf = onSnapshot(doc(db, 'members', u.uid), IM, s => {
     const srv = !s.metadata.fromCache;
+    const had = hadProf || !!prof;
     prof = s.exists() ? s.data() : null; if (srv) profLoaded = true;
+    if (s.exists()) hadProf = true;
     if (srv) cacheSave(u);
+    /* অ্যাডমিন এই সদস্যকে মুছে দিলে তার অ্যাপ সাথে সাথে লগআউট হয় (আগে নিজে নিজে আবার অপেক্ষমাণ প্রোফাইল বানিয়ে ফেলত, তাই তালিকায় ফিরে আসত) */
+    if (!s.exists() && srv && had && !deleting && !isAdminPh(u.email)) { hadProf = false; try { LS.removeItem('nf_ok'); } catch (x) { /* ignore */ } signOut(auth).catch(() => {}); setTimeout(() => tst('অ্যাডমিন আপনার অ্যাকাউন্ট মুছে দিয়েছেন'), 400); return; }
     /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
     if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
     if (s.exists() && isAdminPh(u.email) && (prof.role !== 'admin' || prof.status !== 'approved') && adminFix !== u.uid) { adminFix = u.uid; makeAdmin(u, false).catch(e => { msg = errText(e); render(); }); }
@@ -279,7 +283,7 @@ async function loadMembers() {
 }
 function unsubscribeAll() {
   [unProf, unAdm, unMem, unOrg, unStats].forEach(f => f && f());
-  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = cacheReady = false; memErr = ''; memAt = 0; memBusy = false; memOnce = false; clearTimeout(memT);
+  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false; profLoaded = memLoaded = statsLoaded = cacheReady = false; memErr = ''; memAt = 0; memBusy = false; memOnce = false; hadProf = false; clearTimeout(memT);
 }
 function onStateChange() {
   if (state() === 'ok') { if (!unOrg) startSync(); }
@@ -715,29 +719,37 @@ async function onProfClick(e) {
     } catch (x) { deleting = false; pfErr(errText(x)); }
   }
 }
+/* তাৎক্ষণিক (রিয়েল টাইম) আপডেট: বোতাম চাপতেই তালিকা ও সংখ্যা বদলায়, সার্ভারের উত্তরের অপেক্ষা করে না; ব্যর্থ হলে আগের অবস্থায় ফেরে */
+function localSet(next) { members = next; writeStats(); render(); }
 async function decide(id, status) {
+  const prev = members;
+  localSet(prev.map(x => x.id === id ? { ...x, status } : x));
   try { await updateDoc(doc(db, 'members', id), { status, decidedAt: Date.now(), decidedBy: user.email }); pfAfter(); }
-  catch (e) { syncMsg = errText(e); render(); }
+  catch (e) { localSet(prev); syncMsg = errText(e); render(); }
 }
 async function setAdmin(id, on) {
   const m = members.find(x => x.id === id); if (!m || id === user.uid) return;
   const nm = m.name || whoOf(m) || 'এই সদস্য';
   if (!confirm(on ? nm + ' কে অ্যাডমিন করবেন? অ্যাডমিন সবার অ্যাকাউন্ট ও প্রতিষ্ঠানের ডেটা পরিচালনা করতে পারে।' : nm + ' কে অ্যাডমিন থেকে সরাবেন? সে সাধারণ সদস্য হয়ে থাকবে।')) return;
+  const prev = members;
+  localSet(prev.map(x => x.id === id ? (on ? { ...x, role: 'admin', status: 'approved' } : { ...x, role: 'staff' }) : x));
   try {
     const b = writeBatch(db), at = Date.now();
     if (on) { b.set(doc(db, 'admins', id), { email: m.email || '', at }); b.update(doc(db, 'members', id), { role: 'admin', status: 'approved', decidedAt: at, decidedBy: user.email }); }
     else { b.delete(doc(db, 'admins', id)); b.update(doc(db, 'members', id), { role: 'staff', decidedAt: at, decidedBy: user.email }); }
     await b.commit(); pfAfter(); tst(on ? 'অ্যাডমিন করা হয়েছে' : 'অ্যাডমিন থেকে সরানো হয়েছে');
-  } catch (e) { tst(errText(e)); }
+  } catch (e) { localSet(prev); tst(errText(e)); }
 }
 async function removeMember(id) {
   const m = members.find(x => x.id === id); if (!m || id === user.uid || m.role === 'admin') return;
   if (!confirm((m.name || whoOf(m) || 'এই সদস্য') + ' কে মুছে ফেলবেন? সদস্য তালিকা থেকে চলে যাবে। ওই ব্যক্তি আবার লগইন করলে নতুন করে অনুমোদনের অপেক্ষায় আসবে।')) return;
+  const prev = members;
+  localSet(prev.filter(x => x.id !== id));
   try {
     await deleteDoc(doc(db, 'members', id));
     try { if (m.phone) { const r = doc(db, 'phoneLogins', normPhone(m.phone)), x = await getDoc(r); if (x.exists() && x.data().uid === id) await deleteDoc(r); } } catch (e) { /* ignore */ }
-    pfAfter(); tst('মুছে ফেলা হয়েছে');
-  } catch (e) { tst(errText(e)); }
+    pfAfter(); tst('মুছে ফেলা হয়েছে'); loadMembers();
+  } catch (e) { localSet(prev); tst(errText(e)); }
 }
 let rqT = 0;
 function render() {
