@@ -57,6 +57,12 @@ service cloud.firestore {
       allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
     }
 
+    // অ্যাকাউন্ট সংখ্যা (শুধু গণনা): অ্যাডমিনের অ্যাপ লেখে, সবাই পড়তে পারে
+    match /stats/accounts {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Shared organisation data: only approved members
     match /org/main {
       allow read, write: if isApproved();

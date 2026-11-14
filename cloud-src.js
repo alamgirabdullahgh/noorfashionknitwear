@@ -102,7 +102,7 @@ const orgRef = () => doc(db, 'org', 'main');
 
 let user = null, prof = null, isAdm = false, members = [], reg = null, mode = 'login';
 let fv = { otype: 'Garments', mgmt: 'worker', otEdit: false, division: '', district: '', area: '' };
-let unProf = null, unAdm = null, unMem = null, unOrg = null;
+let unProf = null, unAdm = null, unMem = null, unOrg = null, unStats = null, stats = null, statsKey = '';
 let deleting = false, authReady = false;
 let timer = null, pendingTs = 0, busy = false, msg = '', syncMsg = '', modal = null, lockEl = null, lockKey = '', warned = false;
 
@@ -203,11 +203,14 @@ function subscribe(u) {
     if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { msg = errText(e); render(); });
+  unStats = onSnapshot(doc(db, 'stats', 'accounts'), s => { stats = s.exists() ? s.data() : null; render(); }, () => {});
   unAdm = onSnapshot(doc(db, 'admins', u.uid), s => {
     isAdm = s.exists();
     if (isAdm && !unMem) {
       unMem = onSnapshot(collection(db, 'members'), q => {
         members = q.docs.map(d => ({ id: d.id, ...d.data() }));
+        { const c = countOf(members), k = [c.total, c.approved, c.pending, c.rejected].join('|');
+          if (k !== statsKey) { statsKey = k; setDoc(doc(db, 'stats', 'accounts'), { ...c, at: Date.now() }).catch(() => { statsKey = ''; }); } }
         const n = members.filter(m => m.status === 'pending').length;
         if (n && !warned && !modal && typeof toast === 'function') { warned = true; toast(bn(n) + ' জন অনুমোদনের অপেক্ষায় — মেনু → প্রোফাইল'); }
         render();
@@ -217,8 +220,8 @@ function subscribe(u) {
   }, () => {});
 }
 function unsubscribeAll() {
-  [unProf, unAdm, unMem, unOrg].forEach(f => f && f());
-  unProf = unAdm = unMem = unOrg = null; prof = null; isAdm = false; members = []; warned = false;
+  [unProf, unAdm, unMem, unOrg, unStats].forEach(f => f && f());
+  unProf = unAdm = unMem = unOrg = unStats = null; stats = null; statsKey = ''; prof = null; isAdm = false; members = []; warned = false;
 }
 function onStateChange() {
   if (state() === 'ok') { if (!unOrg) startSync(); }
@@ -244,6 +247,7 @@ function schedule() { clearTimeout(timer); timer = setTimeout(push, 1500); }
 function applyRemote(r) {
   try { LS.setItem('nf1_bak', localJSON()); } catch (e) {}
   LS.setItem(KEY, r.json); LS.setItem('nf_sync_ts', String(r.ts)); LS.removeItem('nf_dirty');
+  try { if (typeof window.NFApply === 'function' && window.NFApply(r.json)) return; } catch (e) { /* fall back to reload */ }
   location.reload();
 }
 function startSync() {
@@ -348,6 +352,7 @@ const cssPf = `
 .pf-ft{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px}
 .pf-lk{color:var(--pr,#0f5132);font-size:13px;font-weight:700;cursor:pointer;padding:8px 2px}.pf-lk.dg{color:var(--no,#c8414f)}
 .pf-ft .pf-b{width:auto;margin:0;padding:9px 18px;background:var(--no,#c8414f);color:#fff}
+.pf-st{margin:12px 0 0;padding:12px 14px;border-radius:14px;background:var(--c,#fff);border:1px solid var(--l,#e3e3e3);font-size:13px;line-height:1.7;color:var(--t,#111)}.pf-st b{font-size:15px}
 .pf-ap{margin-top:18px;padding-top:6px;border-top:2px solid var(--l,#e3e3e3)}`;
 function ensureCss() {
   if (document.getElementById('nfcss')) return;
@@ -514,16 +519,29 @@ function approvalHTML() {
     ${m.id === user.uid ? '' : `<div class="ma">` + (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' && m.role !== 'admin' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '') + (m.role === 'admin' ? `<button data-dm="${m.id}">অ্যাডমিন থেকে সরান</button>` : (m.status === 'approved' ? `<button data-ad="${m.id}">অ্যাডমিন করুন</button>` : '')) + (m.role === 'admin' ? '' : `<button class="dg" data-rm="${m.id}">মুছুন</button>`) + '</div>'}</div>`;
   return `<div class="cd pf-ap"><h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('')}</div>`;
 }
+function countOf(list) {
+  const c = { total: list.length, approved: 0, pending: 0, rejected: 0 };
+  list.forEach(m => { if (m.status === 'approved') c.approved++; else if (m.status === 'pending') c.pending++; else c.rejected++; });
+  return c;
+}
+function statsHTML() {
+  const c = isAdm && members.length ? countOf(members) : stats;
+  if (!c || !c.total) return '';
+  return `<div class="pf-st">মোট অ্যাকাউন্ট: <b>${bn(c.total)} জন</b><br>চালু ${bn(c.approved || 0)} · অপেক্ষায় ${bn(c.pending || 0)} · বন্ধ ${bn(c.rejected || 0)}</div>`;
+}
 function profRender(force) {
   const el = pfEl(); if (!el || !user) return;
   ensureCss();
-  if (!prof) { el.innerHTML = '<div class="pf"><h3 class="pf-h">Profile</h3><div class="pf-v">লোড হচ্ছে…</div></div>'; return; }
+  if (!prof) { const lh = '<div class="pf"><h3 class="pf-h">Profile</h3><div class="pf-v">লোড হচ্ছে…</div></div>'; if (el._h !== lh) { el.innerHTML = lh; el._h = lh; } return; }
   if (!force && pf.sec && el.firstChild && el.querySelector('.pf-s')) return;
   const rowOf = (f, l, val, key) => `<div class="pf-r"><div><div class="pf-l">${l}</div><div class="pf-v">${esc(val) || 'N/A'}</div></div><span class="pf-e" data-ed="${key}">Edit</span></div>`;
   const rows = PF.map(([f, l]) => rowOf(f, l, prof[f], f) + (pf.sec === 'f' && pf.field === f ? editBox(f, l, prof[f] || '') : '')).join('')
-  el.innerHTML = `<div class="pf"><h3 class="pf-h">Profile${isAdm ? ' · Admin' : ''}</h3>${rows}
+  const html = `<div class="pf"><h3 class="pf-h">Profile${isAdm ? ' · Admin' : ''}</h3>${rows}
     <div class="pf-ft"><span class="pf-lk" data-act="openpass">Change Password</span><button class="pf-b" data-act="logout">Logout</button><span class="pf-lk dg" data-act="opendel">Delete Account</span></div>
-    ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>${approvalHTML()}`;
+    ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>${statsHTML()}${approvalHTML()}`;
+  el.onclick = onProfClick;
+  if (el._h === html) return;
+  el.innerHTML = html; el._h = html;
   const sec = el.querySelector('.pf-s'); if (sec) { try { sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* ignore */ } const i = sec.querySelector('input,select'); if (i) i.focus(); }
   el.onclick = onProfClick;
 }
@@ -604,7 +622,12 @@ async function removeMember(id) {
     tst('মুছে ফেলা হয়েছে');
   } catch (e) { tst(errText(e)); }
 }
-function render() { lockRender(); profRender(false); }
+let rqT = 0;
+function render() {
+  if (rqT) return;
+  const run = () => { rqT = 0; lockRender(); profRender(false); };
+  rqT = (window.requestAnimationFrame || (f => setTimeout(f, 16)))(run);
+}
 
 onAuthStateChanged(auth, u => {
   authReady = true;
