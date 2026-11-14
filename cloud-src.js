@@ -1,7 +1,7 @@
 /* Noor Fashion: shared organisation data with email accounts + admin approval (Firebase Auth + Firestore).
    Bundled by the build workflow into www/cloud.js */
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateEmail, verifyBeforeUpdateEmail, deleteUser } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser } from 'firebase/auth';
 import { initializeFirestore, doc, collection, getDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
 
 const cfg = {
@@ -125,11 +125,11 @@ function errText(e) {
   if (/invalid-credential|wrong-password|user-not-found/.test(c)) return 'ফোন নম্বর বা পাসওয়ার্ড ভুল';
   if (/email-already-in-use/.test(c)) return 'এই ফোন নম্বর দিয়ে আগেই অ্যাকাউন্ট আছে — লগইন করুন';
   if (/weak-password/.test(c)) return 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে';
-  if (/invalid-email/.test(c)) return 'ইমেইল সঠিক নয়';
+  if (/invalid-email/.test(c)) return 'ফোন নম্বর সঠিক নয়';
   if (/phone-login-off/.test(c)) return 'ফোন নম্বর বা পাসওয়ার্ড ভুল';
   if (/phone-not-found/.test(c)) return 'এই নম্বরে কোনো অ্যাকাউন্ট পাওয়া যায়নি';
   if (/network/.test(c)) return 'ইন্টারনেট সংযোগ নেই';
-  if (/operation-not-allowed/.test(c)) return 'Firebase-এ Email/Password লগইন চালু নেই';
+  if (/operation-not-allowed/.test(c)) return 'Firebase-এ লগইন চালু নেই (Authentication → Sign-in method)';
   if (/too-many/.test(c)) return 'অনেকবার চেষ্টা হয়েছে, একটু পরে আবার চেষ্টা করুন';
   if (/permission-denied/.test(c)) return 'অনুমতি নেই (Firestore Rules পাবলিশ হয়েছে কি?)';
   return 'সমস্যা: ' + (c || (e && e.message) || 'অজানা');
@@ -141,7 +141,7 @@ const normPhone = v => { v = String(v || '').replace(/[^\d+]/g, ''); return v.st
 const PH_DOM = '@noorfashion.example';
 const phoneEmail = v => { let d = String(v || '').replace(/\D/g, ''); if (d.startsWith('880')) d = d.slice(3); else if (d.startsWith('0')) d = d.slice(1); return 'p' + d + PH_DOM; };
 const isPhoneEmail = e => String(e || '').endsWith(PH_DOM);
-const whoOf = o => (o && isPhoneEmail(o.email)) ? (o.phone || '') : ((o && o.email) || '');
+const whoOf = o => (o && o.phone) || '';
 async function savePhone(u) {
   // ফোন → ইমেইল সূচি (ফোন দিয়ে লগইনের জন্য)। Rules পাবলিশ না থাকলে চুপচাপ বাদ যায়, সাইন-আপ আটকায় না
   try { if (reg && reg.phone) await setDoc(doc(db, 'phoneLogins', normPhone(reg.phone)), { uid: u.uid, email: u.email, at: Date.now() }); } catch (e) { /* ignore */ }
@@ -178,9 +178,12 @@ async function resolveEmail(v) {
   if (!s.exists() || !s.data().email) { const x = new Error('not found'); x.code = 'phone-not-found'; throw x; }
   return s.data().email;
 }
+let idxDone = null;
 function subscribe(u) {
   unProf = onSnapshot(doc(db, 'members', u.uid), s => {
     prof = s.exists() ? s.data() : null;
+    /* আগের (ইমেইলসহ) অ্যাকাউন্টে একবার ঢুকলেই ফোন → লগইন সূচি বসে যায়, যেন পরে শুধু ফোন + পাসওয়ার্ডে ঢোকা যায় */
+    if (prof && prof.phone && !isPhoneEmail(u.email) && idxDone !== u.uid) { idxDone = u.uid; setDoc(doc(db, 'phoneLogins', normPhone(prof.phone)), { uid: u.uid, email: u.email, at: Date.now() }).catch(() => {}); }
     if (!s.exists() && !deleting) ensureProfile(u).catch(e => { msg = errText(e); render(); });
     onStateChange(); render();
   }, e => { msg = errText(e); render(); });
@@ -401,16 +404,7 @@ function renderAuth(cd) {
     };
     go.onclick = submit;
     cd.querySelector('#lgp').onkeydown = e => { if (e.key === 'Enter') submit(); };
-    cd.querySelector('#nff').onclick = async () => {
-      const v = (fv.lgu || '').trim();
-      if (!v) { err('আগে Phone নম্বর লিখুন'); return; }
-      try {
-        let m = v.includes('@') ? v : '';
-        if (!m) { try { m = await resolveEmail(v); } catch (e) { m = ''; } }
-        if (!m || isPhoneEmail(m)) { err('ফোন দিয়ে খোলা অ্যাকাউন্টের পাসওয়ার্ড ইমেইলে রিসেট হয় না — অ্যাডমিনের সাথে যোগাযোগ করুন'); return; }
-        await sendPasswordResetEmail(auth, m); err('পাসওয়ার্ড রিসেটের ইমেইল পাঠানো হয়েছে');
-      } catch (x) { err(errText(x)); }
-    };
+    cd.querySelector('#nff').onclick = () => { err('পাসওয়ার্ড ভুলে গেলে অ্যাডমিনের সাথে যোগাযোগ করুন'); };
     return;
   }
   cd.innerHTML = `<div class="ax"><h2 class="ax-t jn">🌿 Join Now!</h2>
@@ -490,9 +484,6 @@ function editBox(f, l, raw) {
   const inp = `<input class="pf-i" id="pfin" type="${f === 'phone' ? 'tel' : 'text'}" value="${esc(raw)}">`;
   return `<div class="pf-s"><div class="pf-sl">${l}</div>${inp}<div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="save">Save</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
 }
-function emailBox() {
-  return `<div class="pf-s"><div class="pf-sl">New Email</div><input class="pf-i" id="pfem" type="email" autocomplete="email"><div class="pf-sl">Current Password</div><input class="pf-i" id="pfpw" type="password" autocomplete="current-password"><div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="saveemail">Save</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
-}
 function passBox() {
   return `<div class="pf-s"><div class="pf-sl">Current Password</div><input class="pf-i" id="pfcp" type="password" autocomplete="current-password"><div class="pf-sl">New Password</div><input class="pf-i" id="pfnp" type="password" placeholder="Min 8 characters" autocomplete="new-password"><div class="pf-er" id="pfe">${esc(pf.err)}</div><button class="pf-b pf-up" data-act="savepass">Confirm Change</button><button class="pf-b pf-cn" data-act="cancel">Cancel</button></div>`;
 }
@@ -503,7 +494,7 @@ function delBox() {
 function approvalHTML() {
   if (!isAdm) return '';
   const pend = members.filter(m => m.status === 'pending'), rest = members.filter(m => m.status !== 'pending').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const row = m => `<div class="mr"><div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${isPhoneEmail(m.email) ? '' : esc(m.email)}${m.phone ? (isPhoneEmail(m.email) ? '' : ' · ') + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
+  const row = m => `<div class="mr"><div><b>${esc(m.name || whoOf(m))}${m.title ? ' — ' + esc(m.title) : ''}</b>${m.phone ? ' · ' + esc(m.phone) : ''}${m.district ? ' · ' + esc(m.district) : ''} <span class="bd">${m.status === 'approved' ? 'চালু' : m.status === 'pending' ? 'অপেক্ষায়' : 'বন্ধ'}</span></div>
     ${m.id === user.uid ? '' : (m.status !== 'approved' ? `<button class="pr" data-ap="${m.id}">অনুমোদন</button>` : '') + (m.status !== 'rejected' ? `<button data-rj="${m.id}">${m.status === 'pending' ? 'বাতিল' : 'বন্ধ করুন'}</button>` : '')}</div>`;
   return `<div class="cd pf-ap"><h4>অ্যাকাউন্ট অনুমোদন${pend.length ? ' (' + bn(pend.length) + ' জন অপেক্ষায়)' : ''}</h4>${pend.map(row).join('')}${rest.map(row).join('')}</div>`;
 }
@@ -514,7 +505,6 @@ function profRender(force) {
   if (!force && pf.sec && el.firstChild && el.querySelector('.pf-s')) return;
   const rowOf = (f, l, val, key) => `<div class="pf-r"><div><div class="pf-l">${l}</div><div class="pf-v">${esc(val) || 'N/A'}</div></div><span class="pf-e" data-ed="${key}">Edit</span></div>`;
   const rows = PF.map(([f, l]) => rowOf(f, l, prof[f], f) + (pf.sec === 'f' && pf.field === f ? editBox(f, l, prof[f] || '') : '')).join('')
-    + (isPhoneEmail(prof.email || user.email) ? '' : rowOf('email', 'Email', prof.email || user.email, '__email') + (pf.sec === 'e' ? emailBox() : ''));
   el.innerHTML = `<div class="pf"><h3 class="pf-h">Profile${isAdm ? ' · Admin' : ''}</h3>${rows}
     <div class="pf-ft"><span class="pf-lk" data-act="openpass">Change Password</span><button class="pf-b" data-act="logout">Logout</button><span class="pf-lk dg" data-act="opendel">Delete Account</span></div>
     ${pf.sec === 'p' ? passBox() : ''}${pf.sec === 'd' ? delBox() : ''}</div>${approvalHTML()}`;
@@ -527,7 +517,7 @@ async function onProfClick(e) {
   const d = t.dataset;
   if (d.ap) return decide(d.ap, 'approved');
   if (d.rj) return decide(d.rj, 'rejected');
-  if (d.ed) { pf = { sec: d.ed === '__email' ? 'e' : 'f', field: d.ed, err: '' }; return profRender(true); }
+  if (d.ed) { pf = { sec: 'f', field: d.ed, err: '' }; return profRender(true); }
   const a = d.act;
   if (a === 'cancel') return pfReset();
   if (a === 'openpass') { pf = { sec: 'p', field: '', err: '' }; return profRender(true); }
@@ -544,24 +534,6 @@ async function onProfClick(e) {
       if (f === 'phone') await movePhone(prof.phone, v);
       pfReset(); tst('Updated successfully!');
     } catch (x) { pfErr(errText(x)); }
-    return;
-  }
-  if (a === 'saveemail') {
-    const em = (g('pfem').value || '').trim(), pw = g('pfpw').value;
-    if (!em || !pw) return pfErr('Please enter both new email and current password.');
-    pfErr('অপেক্ষা করুন…');
-    try {
-      await reauth(pw);
-      try { await updateEmail(user, em); }
-      catch (x) {
-        if (/operation-not-allowed/.test((x && x.code) || '')) { await verifyBeforeUpdateEmail(user, em); pfReset(); tst('নতুন ইমেইলে ভেরিফিকেশন লিংক পাঠানো হয়েছে — লিংকে চাপ দিলে ইমেইল বদলাবে'); return; }
-        throw x;
-      }
-      await user.getIdToken(true);
-      await updateDoc(doc(db, 'members', user.uid), { email: em });
-      if (prof && prof.phone) await movePhone(prof.phone, prof.phone);
-      pfReset(); tst('Email changed successfully!');
-    } catch (x) { pfErr(/requires-recent-login/.test((x && x.code) || '') ? 'নিরাপত্তার জন্য আবার লগইন করে চেষ্টা করুন' : errText(x)); }
     return;
   }
   if (a === 'savepass') {
